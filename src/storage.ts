@@ -1,4 +1,4 @@
-import { readFile, writeFile, access } from 'fs/promises';
+import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { Model } from './types.js';
 
@@ -49,6 +49,15 @@ const defaultConfig: Config = {
 let config: Config | null = null;
 let models: Model[] = [];
 
+// 确保目录存在
+async function ensureDir() {
+  try {
+    await access(DATA_DIR);
+  } catch {
+    await mkdir(DATA_DIR, { recursive: true });
+  }
+}
+
 // 确保文件存在
 async function ensureFile(filePath: string, defaultContent: object) {
   try {
@@ -63,6 +72,7 @@ export async function loadConfig(): Promise<Config> {
   if (config) return config;
 
   try {
+    await ensureDir();
     await ensureFile(CONFIG_FILE, defaultConfig);
     const content = await readFile(CONFIG_FILE, 'utf-8');
     config = JSON.parse(content);
@@ -177,4 +187,14 @@ export async function updateSettings(settings: Partial<SystemSettings>): Promise
   config.settings = { ...config.settings, ...settings };
   await saveConfig(config);
   return config.settings;
+}
+
+// 更新服务器配置
+export async function updateServerConfig(serverConfig: Partial<ServerConfig>): Promise<ServerConfig> {
+  if (!config) {
+    config = await loadConfig();
+  }
+  config.server = { ...config.server, ...serverConfig };
+  await saveConfig(config);
+  return config.server;
 }

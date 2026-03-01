@@ -276,7 +276,7 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
         <Box sx={{ 
           flex: 1, 
           p: { xs: 1.5, sm: 2, md: 3 },
-          pb: isMobile ? 8 : 3, // 移动端为底部导航留空间
+          pb: isMobile ? 10 : 3, // 移动端为底部导航留更多空间
         }}>
           <Container 
             maxWidth="lg" 

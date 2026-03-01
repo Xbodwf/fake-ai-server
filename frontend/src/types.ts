@@ -50,4 +50,5 @@ export interface Stats {
 
 export interface SystemSettings {
   streamDelay: number;
+  port: number;
 }

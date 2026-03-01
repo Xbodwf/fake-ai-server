@@ -18,6 +18,7 @@ import { useServer } from '../contexts/ServerContext';
 export default function SettingsPage() {
   const { settings, updateSettings } = useServer();
   const [streamDelay, setStreamDelay] = useState(settings.streamDelay);
+  const [port, setPort] = useState(settings.port || 3000);
   const [saved, setSaved] = useState(false);
   
   const theme = useTheme();
@@ -25,10 +26,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setStreamDelay(settings.streamDelay);
-  }, [settings.streamDelay]);
+    setPort(settings.port || 3000);
+  }, [settings.streamDelay, settings.port]);
 
   const handleSave = async () => {
-    await updateSettings({ streamDelay });
+    await updateSettings({ streamDelay, port });
     setSaved(true);
   };
 
@@ -42,6 +44,33 @@ export default function SettingsPage() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         系统设置
       </Typography>
+
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+            服务器配置
+          </Typography>
+          
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              label="API 服务器端口"
+              type="number"
+              value={port}
+              onChange={(e) => setPort(Math.max(1, Math.min(65535, parseInt(e.target.value) || 3000)))}
+              size="small"
+              sx={{ width: isMobile ? '100%' : 200 }}
+              inputProps={{ min: 1, max: 65535 }}
+              helperText="设置后需重启服务器生效"
+            />
+          </Box>
+          
+          <Typography variant="caption" color="text.secondary">
+            • 常用端口：3000、8080、5000<br/>
+            • 修改端口后需要重启服务器才能生效<br/>
+            • 如果端口被占用，服务器将无法启动
+          </Typography>
+        </CardContent>
+      </Card>
 
       <Card sx={{ mb: 2 }}>
         <CardContent>

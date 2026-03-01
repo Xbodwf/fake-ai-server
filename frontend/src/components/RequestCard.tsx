@@ -293,7 +293,7 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
                       fontSize: isMobile ? '0.85rem' : '0.875rem',
                     }}
                   >
-                    {msg.content}
+                    {typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}
                   </Typography>
                 </Box>
               ))}

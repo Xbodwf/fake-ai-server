@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Application } from 'express';
 import type { ChatCompletionRequest, PendingRequest, Model } from './types.js';
 import { addPendingRequest, getPendingRequest, removePendingRequest, getPendingCount } from './requestStore.js';
 import { buildResponse, buildStreamChunk, buildStreamDone, generateRequestId } from './responseBuilder.js';
@@ -16,7 +16,7 @@ import {
   updateSettings,
 } from './storage.js';
 
-const app = express();
+const app: Application = express();
 const server = createServer(app);
 
 // 中间件
@@ -68,7 +68,7 @@ app.post('/api/models', async (req: Request, res: Response) => {
 
 // PUT /api/models/:id - 更新模型
 app.put('/api/models/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { owned_by, description, context_length } = req.body;
 
   try {
@@ -91,7 +91,7 @@ app.put('/api/models/:id', async (req: Request, res: Response) => {
 
 // DELETE /api/models/:id - 删除模型
 app.delete('/api/models/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   try {
     const deleted = await storageDeleteModel(id);
@@ -118,7 +118,8 @@ app.get('/api/stats', (req: Request, res: Response) => {
 app.get('/api/settings', async (req: Request, res: Response) => {
   try {
     const settings = await getSettings();
-    res.json(settings);
+    const serverConfig = await getServerConfig();
+    res.json({ ...settings, port: serverConfig.port });
   } catch (e) {
     res.status(500).json({ error: 'Failed to get settings' });
   }
@@ -127,10 +128,30 @@ app.get('/api/settings', async (req: Request, res: Response) => {
 // PUT /api/settings - 更新系统设置
 app.put('/api/settings', async (req: Request, res: Response) => {
   try {
-    const settings = await updateSettings(req.body);
-    res.json({ success: true, settings });
+    const { port, ...settings } = req.body;
+    
+    // 更新设置
+    const updatedSettings = await updateSettings(settings);
+    
+    // 如果包含端口配置，也更新服务器配置
+    if (port !== undefined) {
+      const { updateServerConfig } = await import('./storage.js');
+      await updateServerConfig({ port });
+    }
+    
+    res.json({ success: true, settings: { ...updatedSettings, port } });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// GET /api/server-config - 获取服务器配置
+app.get('/api/server-config', async (req: Request, res: Response) => {
+  try {
+    const serverConfig = await getServerConfig();
+    res.json(serverConfig);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to get server config' });
   }
 });
 
@@ -146,7 +167,7 @@ app.get('/v1/models', (req: Request, res: Response) => {
 
 // GET /v1/models/:id - 获取单个模型
 app.get('/v1/models/:id', (req: Request, res: Response) => {
-  const model = getModel(req.params.id);
+  const model = getModel(req.params.id as string);
   if (!model) {
     return res.status(404).json({
       error: { message: 'Model not found', type: 'invalid_request_error' }
@@ -194,7 +215,8 @@ app.post('/v1/chat/completions', async (req: Request, res: Response) => {
   console.log('----------------------------------------');
 
   body.messages.forEach((msg, i) => {
-    console.log(`  [${i + 1}] ${msg.role}: ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
+    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+    console.log(`  [${i + 1}] ${msg.role}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`);
   });
   console.log('========================================\n');
 
@@ -461,7 +483,7 @@ app.post('/v1/messages', async (req: Request, res: Response) => {
           .map((c: { text: string }) => c.text)
           .join('\n');
       }
-      messages.push({ role: msg.role, content });
+      messages.push({ role: msg.role as 'system' | 'user' | 'assistant' | 'tool', content });
     });
   }
 
@@ -612,13 +634,13 @@ app.post('/v1/messages', async (req: Request, res: Response) => {
 
 // POST /v1beta/models/:modelId:generateContent - Gemini generateContent
 app.post('/v1beta/models/:modelId:generateContent', async (req: Request, res: Response) => {
-  const modelId = req.params.modelId.replace(':', '');
+  const modelId = (req.params.modelId as string).replace(':', '');
   return handleGeminiRequest(req, res, modelId, false);
 });
 
 // POST /v1beta/models/:modelId:streamGenerateContent - Gemini streamGenerateContent
 app.post('/v1beta/models/:modelId:streamGenerateContent', async (req: Request, res: Response) => {
-  const modelId = req.params.modelId.replace(':', '');
+  const modelId = (req.params.modelId as string).replace(':', '');
   return handleGeminiRequest(req, res, modelId, true);
 });
 
@@ -638,7 +660,7 @@ app.get('/v1beta/models', (req: Request, res: Response) => {
 
 // GET /v1beta/models/:modelId - Gemini model info
 app.get('/v1beta/models/:modelId', (req: Request, res: Response) => {
-  const modelId = req.params.modelId;
+  const modelId = req.params.modelId as string;
   const model = getModel(modelId);
 
   if (!model) {
@@ -781,7 +803,7 @@ async function handleGeminiRequest(
       const content = item.parts
         .map((p: { text?: string }) => p.text || '')
         .join('\n');
-      const role = item.role === 'model' ? 'assistant' : item.role;
+      const role: 'system' | 'user' | 'assistant' | 'tool' = item.role === 'model' ? 'assistant' : item.role as 'system' | 'user' | 'assistant' | 'tool';
       messages.push({ role, content });
     });
   }
