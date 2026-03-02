@@ -2,19 +2,16 @@
 FROM node:24-alpine AS base
 RUN corepack enable && yarn config set registry https://registry.npmmirror.com
 
-# 构建阶段 - 前端
-FROM base AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/yarn.lock* ./
-RUN yarn install --frozen-lockfile && yarn cache clean
-COPY frontend/ ./
-RUN yarn build
-
-# 构建阶段 - 后端
-FROM base AS backend-builder
+# 依赖安装阶段
+FROM base AS deps
 WORKDIR /app
-COPY package.json yarn.lock* tsconfig.json ./
+COPY package.json yarn.lock* ./
 RUN yarn install --frozen-lockfile && yarn cache clean
+
+# 构建阶段
+FROM deps AS builder
+COPY tsconfig.json tsconfig.backend.json tsconfig.frontend.json vite.config.ts index.html ./
+COPY public/ ./public/
 COPY src/ ./src/
 RUN yarn build
 
@@ -23,8 +20,7 @@ FROM base AS production
 WORKDIR /app
 COPY package.json yarn.lock* ./
 RUN yarn install --production --frozen-lockfile && yarn cache clean && rm -rf /tmp/*
-COPY --from=backend-builder /app/dist ./dist
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/data
 EXPOSE 7143
 ENV NODE_ENV=production

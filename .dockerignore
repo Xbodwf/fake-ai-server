@@ -1,10 +1,8 @@
 # Dependencies
 node_modules/
-frontend/node_modules/
 
 # Build outputs
 dist/
-frontend/dist/
 
 # Git
 .git/
@@ -33,10 +31,10 @@ yarn-error.log*
 .env
 .env.*
 
-# Data (will be mounted as volume)
+# Data
 data/
 
-# Lock files (only need yarn.lock)
+# Lock files
 package-lock.json
 pnpm-lock.yaml
 
