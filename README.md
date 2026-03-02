@@ -28,11 +28,21 @@ docker-compose logs -f
 
 服务将在 `http://localhost:7143` 启动。
 
-### 方式二：Docker 手动构建
+### 方式二：通过镜像拉取
+```bash
+# 运行容器
+docker run -d \
+  --name fake-ai-server \
+  -p 7143:7143 \
+  -v $(pwd)/data:/app/data \
+  xbodwf/fake-ai-server:latest
+```
+
+### 方式三：Docker 手动构建
 
 ```bash
 # 构建镜像
-docker build -t fake-ai-server .
+docker build --no-cache -t fake-ai-server .
 
 # 运行容器
 docker run -d \
@@ -42,7 +52,7 @@ docker run -d \
   fake-ai-server
 ```
 
-### 方式三：本地开发
+### 方式四：本地开发
 
 ```bash
 # 安装依赖
