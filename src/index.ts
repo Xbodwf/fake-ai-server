@@ -979,7 +979,7 @@ function buildGeminiResponse(content: string, model: string) {
 }
 
 // 静态文件服务（前端构建产物）
-app.use(express.static('frontend/dist'));
+app.use(express.static('dist/frontend'));
 
 // SPA fallback - 使用中间件处理所有未匹配的路由
 app.use((req: Request, res: Response) => {
@@ -988,7 +988,7 @@ app.use((req: Request, res: Response) => {
     return res.status(404).json({ error: 'Not found' });
   }
   // 否则返回前端页面
-  res.sendFile('frontend/dist/index.html', { root: '.' });
+  res.sendFile('dist/frontend/index.html', { root: '.' });
 });
 
 // 启动服务
