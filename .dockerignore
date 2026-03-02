@@ -26,6 +26,8 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment
 .env
@@ -33,3 +35,13 @@ npm-debug.log*
 
 # Data (will be mounted as volume)
 data/
+
+# Lock files (only need yarn.lock)
+package-lock.json
+pnpm-lock.yaml
+
+# Documentation
+*.md
+
+# Scripts
+start.sh

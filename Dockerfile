@@ -3,19 +3,13 @@ FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# 配置国内镜像源
-RUN yarn config set registry https://registry.npmmirror.com
+# 配置国内镜像源并安装依赖
+RUN corepack enable && yarn config set registry https://registry.npmmirror.com
 
-# 复制前端依赖文件
 COPY frontend/package.json frontend/yarn.lock* ./
+RUN yarn install --frozen-lockfile && yarn cache clean
 
-# 安装依赖
-RUN corepack enable && yarn install --frozen-lockfile
-
-# 复制前端源代码
 COPY frontend/ ./
-
-# 构建前端
 RUN yarn build
 
 # 构建阶段 - 后端
@@ -23,50 +17,34 @@ FROM node:24-alpine AS backend-builder
 
 WORKDIR /app
 
-# 配置国内镜像源
-RUN yarn config set registry https://registry.npmmirror.com
+RUN corepack enable && yarn config set registry https://registry.npmmirror.com
 
-# 复制后端依赖文件
-COPY package.json yarn.lock* ./
-COPY tsconfig.json ./
+COPY package.json yarn.lock* tsconfig.json ./
+RUN yarn install --frozen-lockfile && yarn cache clean
 
-# 安装依赖
-RUN corepack enable && yarn install --frozen-lockfile
-
-# 复制后端源代码
 COPY src/ ./src/
-
-# 构建后端
 RUN yarn build
 
 # 生产阶段
-FROM node:24-alpine
+FROM node:24-alpine AS production
 
 WORKDIR /app
 
-# 配置国内镜像源
-RUN yarn config set registry https://registry.npmmirror.com
+RUN corepack enable && yarn config set registry https://registry.npmmirror.com
 
-# 启用 corepack
-RUN corepack enable
-
-# 复制后端依赖
 COPY package.json yarn.lock* ./
-RUN yarn install --production --frozen-lockfile
+RUN yarn install --production --frozen-lockfile && \
+    yarn cache clean && \
+    rm -rf /tmp/*
 
-# 复制构建产物
 COPY --from=backend-builder /app/dist ./dist
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# 复制数据目录（用于持久化）
 RUN mkdir -p /app/data
 
-# 暴露端口
-EXPOSE 3000
+EXPOSE 7143
 
-# 设置环境变量
 ENV NODE_ENV=production
 ENV PORT=7143
 
-# 启动命令
 CMD ["node", "dist/index.js"]
