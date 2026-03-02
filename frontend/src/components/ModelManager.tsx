@@ -27,10 +27,10 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
+  Plus,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 import type { Model } from '../types';
 
@@ -129,7 +129,7 @@ export default function ModelManager() {
           <Button
             variant="contained"
             size="small"
-            startIcon={<AddIcon />}
+            startIcon={<Plus size={18} />}
             onClick={() => handleOpenDialog()}
           >
             添加
@@ -160,17 +160,17 @@ export default function ModelManager() {
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ pt: 0 }}>
-                  <Button 
-                    size="small" 
-                    startIcon={<EditIcon />}
+                  <Button
+                    size="small"
+                    startIcon={<Pencil size={16} />}
                     onClick={() => handleOpenDialog(model)}
                   >
                     编辑
                   </Button>
-                  <Button 
-                    size="small" 
+                  <Button
+                    size="small"
                     color="error"
-                    startIcon={<DeleteIcon />}
+                    startIcon={<Trash2 size={16} />}
                     onClick={() => handleDelete(model.id)}
                   >
                     删除
@@ -253,7 +253,7 @@ export default function ModelManager() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={<Plus size={18} />}
           onClick={() => handleOpenDialog()}
         >
           添加模型
@@ -312,12 +312,12 @@ export default function ModelManager() {
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                       <Tooltip title="编辑">
                         <IconButton size="small" onClick={() => handleOpenDialog(model)}>
-                          <EditIcon fontSize="small" />
+                          <Pencil size={16} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="删除">
                         <IconButton size="small" color="error" onClick={() => handleDelete(model.id)}>
-                          <DeleteIcon fontSize="small" />
+                          <Trash2 size={16} />
                         </IconButton>
                       </Tooltip>
                     </Stack>

@@ -12,7 +12,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Save as SaveIcon } from '@mui/icons-material';
+import { Save } from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 
 export default function SettingsPage() {
@@ -137,7 +137,7 @@ export default function SettingsPage() {
 
       <Button
         variant="contained"
-        startIcon={<SaveIcon />}
+        startIcon={<Save size={18} />}
         onClick={handleSave}
         fullWidth={isMobile}
       >

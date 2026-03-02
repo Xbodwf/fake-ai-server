@@ -19,13 +19,13 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import {
-  ExpandMore as ExpandMoreIcon,
-  Send as SendIcon,
-  Stop as StopIcon,
-  Delete as DeleteIcon,
-  Timer as TimerIcon,
-  CheckCircle as CheckIcon,
-} from '@mui/icons-material';
+  ChevronDown,
+  Send,
+  Square,
+  Trash2,
+  Timer,
+  CheckCircle,
+} from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 import type { PendingRequest } from '../types';
 
@@ -243,15 +243,16 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
             <Stack direction="row">
               <Tooltip title="丢弃请求">
                 <IconButton onClick={handleDiscard} size="small">
-                  <DeleteIcon fontSize="small" />
+                  <Trash2 size={16} />
                 </IconButton>
               </Tooltip>
               <IconButton onClick={() => setExpanded(!expanded)} size="small">
-                <ExpandMoreIcon 
-                  sx={{ 
-                    transform: expanded ? 'rotate(180deg)' : 'none', 
+                <ChevronDown
+                  size={20}
+                  style={{
+                    transform: expanded ? 'rotate(180deg)' : 'none',
                     transition: 'transform 0.3s',
-                  }} 
+                  }}
                 />
               </IconButton>
             </Stack>
@@ -341,13 +342,13 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
                           >
                             {chunk.content}
                           </Typography>
-                          <CheckIcon 
-                            sx={{ 
-                              fontSize: 12, 
-                              color: '#81c995', 
-                              ml: 0.5,
+                          <CheckCircle
+                            size={12}
+                            style={{
+                              color: '#81c995',
+                              marginLeft: 4,
                               verticalAlign: 'middle',
-                            }} 
+                            }}
                           />
                         </Box>
                       ))}
@@ -359,7 +360,7 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
                 {pendingSend && delay > 0 && (
                   <Box sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <TimerIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                      <Timer size={16} style={{ color: '#ffc107' }} />
                       <Typography variant="caption" color="warning.main">
                         即时返回 - {Math.ceil(countdown / 1000)}秒后发送
                       </Typography>
@@ -412,7 +413,7 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
                     variant="outlined"
                     color="error"
                     onClick={handleEndStream}
-                    startIcon={<StopIcon />}
+                    startIcon={<Square size={14} />}
                     size="small"
                   >
                     结束流
@@ -435,7 +436,7 @@ export default function RequestCard({ requestId, request }: RequestCardProps) {
                   variant="contained"
                   onClick={handleSendResponse}
                   disabled={!response.trim()}
-                  startIcon={<SendIcon />}
+                  startIcon={<Send size={16} />}
                   fullWidth={isMobile}
                 >
                   发送响应

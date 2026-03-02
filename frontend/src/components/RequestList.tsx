@@ -6,7 +6,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Inbox as InboxIcon } from '@mui/icons-material';
+import { Inbox } from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 import RequestCard from './RequestCard';
 
@@ -35,7 +35,7 @@ export default function RequestList() {
             textAlign: 'center',
           }}
         >
-          <InboxIcon sx={{ fontSize: { xs: 60, md: 80 }, mb: 2, opacity: 0.3 }} />
+          <Inbox size={80} style={{ marginBottom: 16, opacity: 0.3 }} />
           <Typography variant="h6" sx={{ mb: 1 }}>
             等待请求中...
           </Typography>

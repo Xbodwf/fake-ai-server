@@ -21,11 +21,11 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Inbox as InboxIcon,
-  Settings as SettingsIcon,
-  Cable as CableIcon,
-  Tune as TuneIcon,
-} from '@mui/icons-material';
+  Inbox,
+  Settings,
+  Cable,
+  Settings2,
+} from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 
 interface LayoutProps {
@@ -44,9 +44,9 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
   const { connected, pendingRequests } = useServer();
 
   const menuItems = [
-    { id: 'requests', label: '请求队列', icon: <InboxIcon /> },
-    { id: 'models', label: '模型管理', icon: <SettingsIcon /> },
-    { id: 'settings', label: '系统设置', icon: <TuneIcon /> },
+    { id: 'requests', label: '请求队列', icon: <Inbox size={20} /> },
+    { id: 'models', label: '模型管理', icon: <Settings size={20} /> },
+    { id: 'settings', label: '系统设置', icon: <Settings2 size={20} /> },
   ];
 
   const pendingCount = pendingRequests.size;
@@ -104,10 +104,7 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
           borderRadius: 3,
           backgroundColor: connected ? 'rgba(168, 199, 250, 0.08)' : 'rgba(255, 107, 107, 0.08)',
         }}>
-          <CableIcon sx={{ 
-            fontSize: 18,
-            color: connected ? 'primary.main' : 'error.main',
-          }} />
+          <Cable size={18} style={{ color: connected ? '#a8c7fa' : '#ff6b6b' }} />
           <Typography 
             variant="body2" 
             sx={{ 
@@ -228,7 +225,7 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
                 onClick={() => setMobileOpen(!mobileOpen)}
                 sx={{ mr: 2 }}
               >
-                <MenuIcon />
+                <MenuIcon size={24} />
               </IconButton>
             )}
             <Typography 
@@ -254,10 +251,7 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
                 borderRadius: 3,
                 backgroundColor: connected ? 'rgba(168, 199, 250, 0.08)' : 'rgba(255, 107, 107, 0.08)',
               }}>
-                <CableIcon sx={{ 
-                  fontSize: 18,
-                  color: connected ? 'primary.main' : 'error.main',
-                }} />
+                <Cable size={18} style={{ color: connected ? '#a8c7fa' : '#ff6b6b' }} />
                 <Typography 
                   variant="body2" 
                   sx={{ 
