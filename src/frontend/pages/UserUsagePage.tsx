@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -15,6 +16,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 
 interface UsageStats {
@@ -28,6 +30,7 @@ interface UsageStats {
 export function UserUsagePage() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,21 +58,17 @@ export function UserUsagePage() {
   };
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Usage Statistics
+          {t('usage.title')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          View your API usage and costs
+          {t('usage.description')}
         </Typography>
       </Box>
 
@@ -84,7 +83,7 @@ export function UserUsagePage() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Requests
+              {t('usage.totalRequests')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalRequests || 0}
@@ -95,7 +94,7 @@ export function UserUsagePage() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Tokens
+              {t('usage.totalTokens')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalTokens || 0}
@@ -106,7 +105,7 @@ export function UserUsagePage() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Cost
+              {t('usage.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${stats?.totalCost.toFixed(4) || '0.0000'}
@@ -119,17 +118,17 @@ export function UserUsagePage() {
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Usage by Model
+            {t('usage.usageByModel')}
           </Typography>
           {stats && Object.keys(stats.byModel).length > 0 ? (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                    <TableCell>Model</TableCell>
-                    <TableCell align="right">Requests</TableCell>
-                    <TableCell align="right">Tokens</TableCell>
-                    <TableCell align="right">Cost</TableCell>
+                    <TableCell>{t('usage.model')}</TableCell>
+                    <TableCell align="right">{t('usage.requests')}</TableCell>
+                    <TableCell align="right">{t('usage.tokens')}</TableCell>
+                    <TableCell align="right">{t('usage.cost')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -145,7 +144,7 @@ export function UserUsagePage() {
               </Table>
             </TableContainer>
           ) : (
-            <Typography sx={{ color: 'text.secondary' }}>No usage data</Typography>
+            <Typography sx={{ color: 'text.secondary' }}>{t('usage.noUsageData')}</Typography>
           )}
         </CardContent>
       </Card>
@@ -154,17 +153,17 @@ export function UserUsagePage() {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Usage by Endpoint
+            {t('usage.usageByEndpoint')}
           </Typography>
           {stats && Object.keys(stats.byEndpoint).length > 0 ? (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                    <TableCell>Endpoint</TableCell>
-                    <TableCell align="right">Requests</TableCell>
-                    <TableCell align="right">Tokens</TableCell>
-                    <TableCell align="right">Cost</TableCell>
+                    <TableCell>{t('usage.endpoint')}</TableCell>
+                    <TableCell align="right">{t('usage.requests')}</TableCell>
+                    <TableCell align="right">{t('usage.tokens')}</TableCell>
+                    <TableCell align="right">{t('usage.cost')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -180,7 +179,7 @@ export function UserUsagePage() {
               </Table>
             </TableContainer>
           ) : (
-            <Typography sx={{ color: 'text.secondary' }}>No usage data</Typography>
+            <Typography sx={{ color: 'text.secondary' }}>{t('usage.noUsageData')}</Typography>
           )}
         </CardContent>
       </Card>

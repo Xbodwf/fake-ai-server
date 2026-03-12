@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -12,6 +13,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 
 interface DashboardStats {
@@ -24,6 +26,7 @@ interface DashboardStats {
 export function UserDashboard() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -57,11 +60,7 @@ export function UserDashboard() {
   }, [user, token, navigate]);
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -69,10 +68,10 @@ export function UserDashboard() {
       {/* 头部 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Welcome, {user?.username}
+          {t('dashboard.welcome', { user: user?.username })}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Manage your API keys, usage, and billing
+          {t('dashboard.manageYourAccount')}
         </Typography>
       </Box>
 
@@ -87,7 +86,7 @@ export function UserDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Account Balance
+              {t('dashboard.accountBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${stats?.balance.toFixed(2) || '0.00'}
@@ -98,7 +97,7 @@ export function UserDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Usage
+              {t('dashboard.totalUsage')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalUsage || 0} tokens
@@ -109,7 +108,7 @@ export function UserDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Requests
+              {t('dashboard.totalRequests')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalRequests || 0}
@@ -120,7 +119,7 @@ export function UserDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Cost
+              {t('dashboard.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${stats?.totalCost.toFixed(2) || '0.00'}
@@ -133,38 +132,38 @@ export function UserDashboard() {
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Quick Actions
+            {t('dashboard.quickActions')}
           </Typography>
           <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               onClick={() => navigate('/api-keys')}
             >
-              Manage API Keys
+              {t('dashboard.manageApiKeys')}
             </Button>
             <Button
               variant="outlined"
               onClick={() => navigate('/usage')}
             >
-              View Usage
+              {t('dashboard.viewUsage')}
             </Button>
             <Button
               variant="outlined"
               onClick={() => navigate('/billing')}
             >
-              View Billing
+              {t('dashboard.viewBilling')}
             </Button>
             <Button
               variant="outlined"
               onClick={() => navigate('/profile')}
             >
-              Edit Profile
+              {t('dashboard.editProfile')}
             </Button>
             <Button
               variant="outlined"
               onClick={() => navigate('/actions')}
             >
-              Manage Actions
+              {t('dashboard.manageActions')}
             </Button>
           </Stack>
         </CardContent>
@@ -174,26 +173,26 @@ export function UserDashboard() {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Account Information
+            {t('dashboard.accountInformation')}
           </Typography>
           <Divider sx={{ mb: 2 }} />
           <Stack spacing={1}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography color="textSecondary">Username:</Typography>
+              <Typography color="textSecondary">{t('auth.username')}:</Typography>
               <Typography>{user?.username}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography color="textSecondary">Email:</Typography>
+              <Typography color="textSecondary">{t('auth.email')}:</Typography>
               <Typography>{user?.email}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography color="textSecondary">Role:</Typography>
+              <Typography color="textSecondary">{t('common.role')}:</Typography>
               <Typography sx={{ textTransform: 'capitalize' }}>{user?.role}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography color="textSecondary">Account Status:</Typography>
+              <Typography color="textSecondary">{t('common.status')}:</Typography>
               <Typography sx={{ color: user?.enabled ? 'success.main' : 'error.main' }}>
-                {user?.enabled ? 'Active' : 'Disabled'}
+                {user?.enabled ? t('common.active') : t('admin.disable')}
               </Typography>
             </Box>
           </Stack>

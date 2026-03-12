@@ -20,6 +20,7 @@ import {
 import { Search, X } from 'lucide-react';
 import { ModelCard } from '../components/ModelCard';
 import type { Model } from '../../types.js';
+import { useTranslation } from 'react-i18next';
 
 interface ModelMarketplaceProps {
   models: Model[];
@@ -27,6 +28,7 @@ interface ModelMarketplaceProps {
 }
 
 export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
@@ -97,10 +99,10 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
       {/* 标题 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Model Marketplace
+          {t('models.title')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Discover and select from {models.length} available models
+          {t('models.subtitle', { count: models.length })}
         </Typography>
       </Box>
 
@@ -110,7 +112,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
           {/* 搜索框 */}
           <TextField
             fullWidth
-            placeholder="Search models by name, description, or provider..."
+            placeholder={t('models.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
@@ -121,13 +123,13 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
           {/* 过滤器 */}
           <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
             <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Category</InputLabel>
+              <InputLabel>{t('models.category')}</InputLabel>
               <Select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                label="Category"
+                label={t('models.category')}
               >
-                <MenuItem value="all">All Categories</MenuItem>
+                <MenuItem value="all">{t('models.allCategories')}</MenuItem>
                 {categories.map((cat) => (
                   <MenuItem key={cat} value={cat}>
                     {cat}
@@ -137,13 +139,13 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
             </FormControl>
 
             <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Provider</InputLabel>
+              <InputLabel>{t('models.provider')}</InputLabel>
               <Select
                 value={selectedProvider}
                 onChange={(e) => setSelectedProvider(e.target.value)}
-                label="Provider"
+                label={t('models.provider')}
               >
-                <MenuItem value="all">All Providers</MenuItem>
+                <MenuItem value="all">{t('models.allProviders')}</MenuItem>
                 {providers.map((provider) => (
                   <MenuItem key={provider} value={provider}>
                     {provider}
@@ -153,16 +155,16 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
             </FormControl>
 
             <FormControl sx={{ minWidth: 150 }}>
-              <InputLabel>Price Range</InputLabel>
+              <InputLabel>{t('models.priceRange')}</InputLabel>
               <Select
                 value={`${priceRange[0]}-${priceRange[1]}`}
                 onChange={(e) => {
                   const [min, max] = e.target.value.split('-').map(Number);
                   setPriceRange([min, max]);
                 }}
-                label="Price Range"
+                label={t('models.priceRange')}
               >
-                <MenuItem value="0-1">All Prices</MenuItem>
+                <MenuItem value="0-1">{t('models.allPrices')}</MenuItem>
                 <MenuItem value="0-0.1">Free - $0.1</MenuItem>
                 <MenuItem value="0.1-0.5">$0.1 - $0.5</MenuItem>
                 <MenuItem value="0.5-1">$0.5 - $1</MenuItem>
@@ -180,7 +182,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                   setPriceRange([0, 1]);
                 }}
               >
-                Clear Filters
+                {t('models.clearFilters')}
               </Button>
             )}
           </Stack>
@@ -189,7 +191,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
 
       {/* 结果计数 */}
       <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-        Showing {filteredModels.length} of {models.length} models
+        {t('models.showing', { count: filteredModels.length, total: models.length })}
       </Typography>
 
       {/* 模型网格 */}
@@ -212,8 +214,8 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
             color: 'text.secondary',
           }}
         >
-          <Typography variant="h6">No models found</Typography>
-          <Typography variant="body2">Try adjusting your search or filters</Typography>
+          <Typography variant="h6">{t('models.noModels')}</Typography>
+          <Typography variant="body2">{t('models.tryAdjust')}</Typography>
         </Box>
       )}
 
@@ -226,7 +228,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
               <Stack spacing={2} sx={{ mt: 2 }}>
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    Provider
+                    {t('models.details.provider')}
                   </Typography>
                   <Typography variant="body2">{selectedModel.owned_by}</Typography>
                 </Box>
@@ -235,7 +237,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    Description
+                    {t('models.details.description')}
                   </Typography>
                   <Typography variant="body2">{selectedModel.description}</Typography>
                 </Box>
@@ -245,17 +247,17 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                     <Divider />
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                        Pricing
+                        {t('models.details.pricing')}
                       </Typography>
                       <Stack spacing={0.5}>
                         {selectedModel.pricing.input && (
                           <Typography variant="body2">
-                            Input: ${selectedModel.pricing.input.toFixed(4)}/{selectedModel.pricing.unit || 'K'} tokens
+                            {t('models.details.input')}: ${selectedModel.pricing.input.toFixed(4)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
                           </Typography>
                         )}
                         {selectedModel.pricing.output && (
                           <Typography variant="body2">
-                            Output: ${selectedModel.pricing.output.toFixed(4)}/{selectedModel.pricing.unit || 'K'} tokens
+                            {t('models.details.output')}: ${selectedModel.pricing.output.toFixed(4)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
                           </Typography>
                         )}
                       </Stack>
@@ -268,7 +270,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                     <Divider />
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                        Features
+                        {t('models.details.features')}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                         {selectedModel.supported_features.map((feature) => (
@@ -284,10 +286,10 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                     <Divider />
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Context Length
+                        {t('models.details.contextLength')}
                       </Typography>
                       <Typography variant="body2">
-                        {(selectedModel.context_length / 1000000).toFixed(1)}M tokens
+                        {(selectedModel.context_length / 1000000).toFixed(1)}M {t('models.details.tokens')}
                       </Typography>
                     </Box>
                   </>
@@ -295,7 +297,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setShowDetails(false)}>Close</Button>
+              <Button onClick={() => setShowDetails(false)}>{t('common.close')}</Button>
               <Button
                 variant="contained"
                 onClick={() => {
@@ -303,7 +305,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                   setShowDetails(false);
                 }}
               >
-                Select Model
+                {t('models.selectModel')}
               </Button>
             </DialogActions>
           </>

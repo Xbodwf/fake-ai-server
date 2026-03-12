@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -18,6 +19,7 @@ import axios from 'axios';
 export function UserProfilePage() {
   const navigate = useNavigate();
   const { user, token, updateUser: updateAuthUser } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -48,7 +50,7 @@ export function UserProfilePage() {
       );
 
       updateAuthUser({ ...user!, email: response.data.email });
-      setSuccess('Profile updated successfully');
+      setSuccess(t('user.profileUpdated'));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update profile');
     } finally {
@@ -62,12 +64,12 @@ export function UserProfilePage() {
     setSuccess('');
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordMismatch'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('auth.passwordTooShort'));
       return;
     }
 
@@ -80,7 +82,7 @@ export function UserProfilePage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setSuccess('Password changed successfully');
+      setSuccess(t('user.passwordChanged'));
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -95,10 +97,10 @@ export function UserProfilePage() {
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Profile Settings
+          {t('user.profileSettings')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Manage your account information and security
+          {t('user.manageAccountInfo')}
         </Typography>
       </Box>
 
@@ -118,20 +120,20 @@ export function UserProfilePage() {
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-            Basic Information
+            {t('user.basicInformation')}
           </Typography>
 
           <form onSubmit={handleUpdateProfile}>
             <Stack spacing={2}>
               <TextField
                 fullWidth
-                label="Username"
+                label={t('auth.username')}
                 value={user?.username || ''}
                 disabled
               />
               <TextField
                 fullWidth
-                label="Email"
+                label={t('auth.email')}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -142,7 +144,7 @@ export function UserProfilePage() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : 'Update Profile'}
+                {loading ? <CircularProgress size={24} /> : t('user.updateProfile')}
               </Button>
             </Stack>
           </form>
@@ -153,14 +155,14 @@ export function UserProfilePage() {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-            Change Password
+            {t('user.changePassword')}
           </Typography>
 
           <form onSubmit={handleChangePassword}>
             <Stack spacing={2}>
               <TextField
                 fullWidth
-                label="Current Password"
+                label={t('user.currentPassword')}
                 type="password"
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
@@ -168,7 +170,7 @@ export function UserProfilePage() {
               />
               <TextField
                 fullWidth
-                label="New Password"
+                label={t('user.newPassword')}
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -176,7 +178,7 @@ export function UserProfilePage() {
               />
               <TextField
                 fullWidth
-                label="Confirm New Password"
+                label={t('user.confirmNewPassword')}
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -187,7 +189,7 @@ export function UserProfilePage() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : 'Change Password'}
+                {loading ? <CircularProgress size={24} /> : t('user.changePassword')}
               </Button>
             </Stack>
           </form>

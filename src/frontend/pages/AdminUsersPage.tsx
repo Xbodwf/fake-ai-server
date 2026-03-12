@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -25,12 +26,14 @@ import {
 } from '@mui/material';
 import { Edit2, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 import type { User } from '../../types.js';
 
 export function AdminUsersPage() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -89,7 +92,7 @@ export function AdminUsersPage() {
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm(t('admin.confirmDeleteUser'))) return;
 
     try {
       await axios.delete(`/api/admin/users/${id}`, {
@@ -102,11 +105,7 @@ export function AdminUsersPage() {
   };
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -114,14 +113,14 @@ export function AdminUsersPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            User Management
+            {t('admin.userManagement')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Manage users, balances, and permissions
+            {t('admin.manageUsersDesc')}
           </Typography>
         </Box>
         <Button variant="outlined" onClick={() => navigate('/console/dashboard')}>
-          Back to Dashboard
+          {t('admin.backToDashboard')}
         </Button>
       </Box>
 
@@ -135,21 +134,21 @@ export function AdminUsersPage() {
         <CardContent>
           {users.length === 0 ? (
             <Typography sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-              No users found
+              {t('admin.noUsersFound')}
             </Typography>
           ) : (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                    <TableCell>Username</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell align="right">Balance</TableCell>
-                    <TableCell align="right">Total Usage</TableCell>
-                    <TableCell>Role</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell>{t('common.name')}</TableCell>
+                    <TableCell>{t('common.email')}</TableCell>
+                    <TableCell align="right">{t('admin.balance')}</TableCell>
+                    <TableCell align="right">{t('admin.totalUsage')}</TableCell>
+                    <TableCell>{t('common.role')}</TableCell>
+                    <TableCell>{t('common.status')}</TableCell>
+                    <TableCell>{t('common.created')}</TableCell>
+                    <TableCell align="right">{t('common.actions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -169,7 +168,7 @@ export function AdminUsersPage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={u.enabled ? 'Active' : 'Disabled'}
+                          label={u.enabled ? t('common.active') : t('admin.disable')}
                           color={u.enabled ? 'success' : 'error'}
                           size="small"
                         />
@@ -181,7 +180,7 @@ export function AdminUsersPage() {
                         <IconButton
                           size="small"
                           onClick={() => handleEditUser(u)}
-                          title="Edit user"
+                          title={t('admin.editUser')}
                         >
                           <Edit2 size={18} />
                         </IconButton>
@@ -189,7 +188,7 @@ export function AdminUsersPage() {
                           size="small"
                           onClick={() => handleDeleteUser(u.id)}
                           color="error"
-                          title="Delete user"
+                          title={t('admin.deleteUser')}
                         >
                           <Trash2 size={18} />
                         </IconButton>
@@ -205,12 +204,12 @@ export function AdminUsersPage() {
 
       {/* 编辑用户对话框 */}
       <Dialog open={showEditDialog} onClose={() => setShowEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit User: {selectedUser?.username}</DialogTitle>
+        <DialogTitle>{t('admin.editUserTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Balance"
+              label={t('admin.balance')}
               type="number"
               value={editBalance}
               onChange={(e) => setEditBalance(e.target.value)}
@@ -218,29 +217,29 @@ export function AdminUsersPage() {
             />
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Status
+                {t('common.status')}
               </Typography>
               <Stack direction="row" spacing={1}>
                 <Button
                   variant={editEnabled ? 'contained' : 'outlined'}
                   onClick={() => setEditEnabled(true)}
                 >
-                  Enable
+                  {t('admin.enable')}
                 </Button>
                 <Button
                   variant={!editEnabled ? 'contained' : 'outlined'}
                   onClick={() => setEditEnabled(false)}
                 >
-                  Disable
+                  {t('admin.disable')}
                 </Button>
               </Stack>
             </Box>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowEditDialog(false)}>Cancel</Button>
+          <Button onClick={() => setShowEditDialog(false)}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={handleSaveUser}>
-            Save
+            {t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

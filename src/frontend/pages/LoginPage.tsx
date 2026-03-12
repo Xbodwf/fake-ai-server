@@ -10,11 +10,18 @@ import {
   Alert,
   CircularProgress,
   Stack,
+  AppBar,
+  Toolbar,
 } from '@mui/material';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -31,10 +38,8 @@ export function LoginPage() {
         password,
       });
 
-      // 保存 token
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      // 使用 AuthContext 的 login 方法
+      login(response.data.token, response.data.user);
 
       // 重定向到仪表板
       if (response.data.user.role === 'admin') {
@@ -43,68 +48,89 @@ export function LoginPage() {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
-      <Box sx={{ width: '100%' }}>
-        <Card sx={{ p: 4 }}>
-          <Typography variant="h4" sx={{ mb: 1, fontWeight: 600, textAlign: 'center' }}>
-            Login
+    <>
+      <AppBar position="sticky" sx={{ backgroundColor: 'background.paper', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+        <Toolbar>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              color: 'primary.main',
+              cursor: 'pointer',
+              mr: 4,
+            }}
+            onClick={() => navigate('/login')}
+          >
+            Phantom Mock
           </Typography>
-          <Typography variant="body2" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
-            Sign in to your account
-          </Typography>
+          <Box sx={{ ml: 'auto' }}>
+            <LanguageSwitcher />
+          </Box>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', minHeight: 'calc(100vh - 64px)' }}>
+        <Box sx={{ width: '100%' }}>
+          <Card sx={{ p: 4 }}>
+            <Typography variant="h4" sx={{ mb: 1, fontWeight: 600, textAlign: 'center' }}>
+              {t('auth.login')}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
+              {t('auth.signInDescription')}
+            </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-          <form onSubmit={handleLogin}>
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                type="submit"
-                disabled={loading}
-                sx={{ mt: 2 }}
-              >
-                {loading ? <CircularProgress size={24} /> : 'Sign In'}
-              </Button>
-            </Stack>
-          </form>
+            <form onSubmit={handleLogin}>
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label={t('auth.username')}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                />
+                <TextField
+                  fullWidth
+                  label={t('auth.password')}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                />
+                <Button
+                  fullWidth
+                  variant="contained"
+                  type="submit"
+                  disabled={loading}
+                  sx={{ mt: 2 }}
+                >
+                  {loading ? <CircularProgress size={24} /> : t('auth.signIn')}
+                </Button>
+              </Stack>
+            </form>
 
-          <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: 'inherit', textDecoration: 'none' }}>
-              <Typography component="span" sx={{ color: 'primary.main', cursor: 'pointer' }}>
-                Register here
-              </Typography>
-            </Link>
-          </Typography>
-        </Card>
-      </Box>
-    </Container>
+            <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
+              {t('auth.noAccount')}{' '}
+              <Link to="/register" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Typography component="span" sx={{ color: 'primary.main', cursor: 'pointer' }}>
+                  {t('auth.registerHere')}
+                </Typography>
+              </Link>
+            </Typography>
+          </Card>
+        </Box>
+      </Container>
+    </>
   );
 }

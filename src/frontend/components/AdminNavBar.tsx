@@ -17,8 +17,12 @@ import {
 import { Menu as MenuIcon, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export function AdminNavBar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -27,8 +31,9 @@ export function AdminNavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const menuItems = [
-    { label: 'Dashboard', path: '/console/dashboard' },
-    { label: 'Users', path: '/console/users' },
+    { label: t('nav.dashboard'), path: '/console/dashboard' },
+    { label: t('nav.models'), path: '/console/models' },
+    { label: t('nav.users'), path: '/console/users' },
   ];
 
   const handleLogout = () => {
@@ -45,7 +50,7 @@ export function AdminNavBar() {
     <Box sx={{ width: 250 }}>
       <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-          Admin Menu
+          {t('nav.adminMenu')}
         </Typography>
       </Box>
       <List>
@@ -68,7 +73,7 @@ export function AdminNavBar() {
           startIcon={<LogOut size={18} />}
           onClick={handleLogout}
         >
-          Logout
+          {t('common.logout')}
         </Button>
       </Box>
     </Box>
@@ -88,7 +93,7 @@ export function AdminNavBar() {
             }}
             onClick={() => navigate('/console/dashboard')}
           >
-            Admin Console
+            {t('nav.adminConsole')}
           </Typography>
 
           {!isMobile && (
@@ -119,13 +124,15 @@ export function AdminNavBar() {
                 <Typography variant="body2" sx={{ mr: 2 }}>
                   {user?.username}
                 </Typography>
+                <ThemeSwitcher />
+                <LanguageSwitcher />
                 <Button
                   variant="outlined"
                   size="small"
                   startIcon={<LogOut size={18} />}
                   onClick={handleLogout}
                 >
-                  Logout
+                  {t('common.logout')}
                 </Button>
               </>
             )}

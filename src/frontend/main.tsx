@@ -1,7 +1,9 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import axios from 'axios'
+import { CircularProgress, Box } from '@mui/material'
 import App from './App.tsx'
+import './i18n' // 初始化 i18n
 
 // 配置 axios 默认请求头
 axios.interceptors.request.use((config) => {
@@ -25,8 +27,19 @@ axios.interceptors.response.use(
   }
 )
 
+// 加载中组件
+function LoadingFallback() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <CircularProgress />
+    </Box>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Suspense fallback={<LoadingFallback />}>
+      <App />
+    </Suspense>
   </StrictMode>,
 )

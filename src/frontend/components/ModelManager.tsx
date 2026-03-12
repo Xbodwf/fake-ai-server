@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { useServer } from '../contexts/ServerContext';
 import type { Model, ModelUpdateParams } from '../types';
+import { useTranslation } from 'react-i18next';
 
 // 格式化上下文大小
 function formatContextLength(value?: number): string {
@@ -95,6 +96,7 @@ const defaultFormData: FormData = {
 };
 
 export default function ModelManager() {
+  const { t } = useTranslation();
   const { models, addModel, updateModel, deleteModel } = useServer();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<Model | null>(null);
@@ -154,7 +156,6 @@ export default function ModelManager() {
     };
 
     if (editingModel) {
-      // 如果修改了ID，需要传递newId
       if (formData.id !== editingModel.id) {
         const updateParams: ModelUpdateParams = { ...modelData, newId: formData.id };
         await updateModel(editingModel.id, updateParams);
@@ -168,7 +169,7 @@ export default function ModelManager() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm(`确定要删除模型 "${id}" 吗？`)) {
+    if (confirm(t('models.manager.confirmDelete', { id }))) {
       await deleteModel(id);
     }
   };
@@ -180,22 +181,13 @@ export default function ModelManager() {
     openai: 'info',
   };
 
-  // 渲染模型价格标签 (预留功能)
-  // const renderPricing = (model: Model) => {
-  //   if (!model.pricing?.input && !model.pricing?.output) return '-';
-  //   const parts = [];
-  //   if (model.pricing.input) parts.push(`输入${model.pricing.input}/1K`);
-  //   if (model.pricing.output) parts.push(`输出${model.pricing.output}/1K`);
-  //   return parts.join(' | ');
-  // };
-
   // 移动端卡片视图
   if (isMobile) {
     return (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            共 {models.length} 个模型
+            {t('models.manager.totalModels', { count: models.length })}
           </Typography>
           <Button
             variant="contained"
@@ -203,7 +195,7 @@ export default function ModelManager() {
             startIcon={<Plus size={18} />}
             onClick={() => handleOpenDialog()}
           >
-            添加
+            {t('common.add')}
           </Button>
         </Box>
 
@@ -229,12 +221,12 @@ export default function ModelManager() {
                     </Typography>
                   )}
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
-                    <Chip size="small" label={`上下文: ${formatContextLength(model.context_length)}`} />
+                    <Chip size="small" label={`${t('models.manager.contextLength')}: ${formatContextLength(model.context_length)}`} />
                     {model.max_output_tokens && (
-                      <Chip size="small" label={`输出: ${formatContextLength(model.max_output_tokens)}`} />
+                      <Chip size="small" label={`${t('common.output')}: ${formatContextLength(model.max_output_tokens)}`} />
                     )}
                     {model.api_key && (
-                      <Chip size="small" icon={<Key size={14} />} label="已配置API Key" color="success" />
+                      <Chip size="small" icon={<Key size={14} />} label={t('models.manager.configuredApiKey')} color="success" />
                     )}
                   </Stack>
                 </CardContent>
@@ -244,7 +236,7 @@ export default function ModelManager() {
                     startIcon={<Pencil size={16} />}
                     onClick={() => handleOpenDialog(model)}
                   >
-                    编辑
+                    {t('common.edit')}
                   </Button>
                   <Button
                     size="small"
@@ -252,7 +244,7 @@ export default function ModelManager() {
                     startIcon={<Trash2 size={16} />}
                     onClick={() => handleDelete(model.id)}
                   >
-                    删除
+                    {t('common.delete')}
                   </Button>
                 </CardActions>
               </Card>
@@ -267,54 +259,54 @@ export default function ModelManager() {
           maxWidth="sm"
           fullScreen={isSmall}
         >
-          <DialogTitle>{editingModel ? '编辑模型' : '添加模型'}</DialogTitle>
+          <DialogTitle>{editingModel ? t('models.manager.editModel') : t('models.manager.addModel')}</DialogTitle>
           <DialogContent>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
               <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="fullWidth">
-                <Tab label="基本信息" />
-                <Tab label="高级设置" />
+                <Tab label={t('models.manager.basicInfo')} />
+                <Tab label={t('models.manager.advancedSettings')} />
               </Tabs>
             </Box>
 
             {activeTab === 0 && (
               <Stack spacing={2} sx={{ mt: 1 }}>
                 <TextField
-                  label="模型 ID"
+                  label={t('models.manager.modelId')}
                   fullWidth
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="例如: gemini-2.5-flash"
+                  placeholder={t('models.manager.modelIdPlaceholder')}
                   size="small"
                 />
                 <TextField
-                  label="提供商"
+                  label={t('models.provider')}
                   fullWidth
                   value={formData.owned_by}
                   onChange={(e) => setFormData({ ...formData, owned_by: e.target.value })}
-                  placeholder="例如: google, anthropic"
+                  placeholder={t('models.manager.providerPlaceholder')}
                   size="small"
                 />
                 <TextField
-                  label="描述"
+                  label={t('models.details.description')}
                   fullWidth
                   multiline
                   minRows={2}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="模型描述信息"
+                  placeholder={t('models.manager.descriptionPlaceholder')}
                   size="small"
                 />
                 <TextField
-                  label="上下文长度"
+                  label={t('models.manager.contextLength')}
                   fullWidth
                   value={formData.context_length}
                   onChange={(e) => setFormData({ ...formData, context_length: parseContextLength(e.target.value) })}
-                  placeholder="例如: 1M, 128K, 4096"
+                  placeholder={t('models.manager.contextLengthPlaceholder')}
                   helperText={`=${formatContextLength(formData.context_length)} tokens`}
                   size="small"
                 />
                 <TextField
-                  label="最大输出Token"
+                  label={t('models.manager.maxOutputTokens')}
                   fullWidth
                   value={formData.max_output_tokens}
                   onChange={(e) => setFormData({ ...formData, max_output_tokens: parseInt(e.target.value) || 8192 })}
@@ -322,12 +314,12 @@ export default function ModelManager() {
                   size="small"
                 />
                 <TextField
-                  label="模型别名"
+                  label={t('models.manager.aliases')}
                   fullWidth
                   value={formData.aliases}
                   onChange={(e) => setFormData({ ...formData, aliases: e.target.value })}
-                  placeholder="用逗号分隔，例如: gpt-4, gpt4"
-                  helperText="用户可以使用别名访问此模型"
+                  placeholder={t('models.manager.aliasesPlaceholder')}
+                  helperText={t('models.manager.aliasesHelper')}
                   size="small"
                 />
               </Stack>
@@ -336,15 +328,15 @@ export default function ModelManager() {
             {activeTab === 1 && (
               <Stack spacing={2} sx={{ mt: 1 }}>
                 <Alert severity="info" sx={{ mb: 1 }}>
-                  以下为高级设置，可根据需要配置
+                  {t('models.manager.advancedInfo')}
                 </Alert>
                 
                 <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <DollarSign size={16} /> 扣费规则（每1K token价格，美元）
+                  <DollarSign size={16} /> {t('models.manager.pricingTitle')}
                 </Typography>
                 <Stack direction="row" spacing={2}>
                   <TextField
-                    label="输入价格 ($/1K tokens)"
+                    label={t('models.manager.inputPrice')}
                     type="number"
                     value={formData.pricing_input}
                     onChange={(e) => setFormData({ ...formData, pricing_input: parseFloat(e.target.value) || 0 })}
@@ -352,7 +344,7 @@ export default function ModelManager() {
                     inputProps={{ min: 0, step: 0.0001 }}
                   />
                   <TextField
-                    label="输出价格 ($/1K tokens)"
+                    label={t('models.manager.outputPrice')}
                     type="number"
                     value={formData.pricing_output}
                     onChange={(e) => setFormData({ ...formData, pricing_output: parseFloat(e.target.value) || 0 })}
@@ -364,10 +356,10 @@ export default function ModelManager() {
                 <Divider sx={{ my: 1 }} />
 
                 <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Key size={16} /> API 配置（用于转发请求）
+                  <Key size={16} /> {t('models.manager.apiConfig')}
                 </Typography>
                 <TextField
-                  label="API Key"
+                  label={t('models.manager.apiKey')}
                   fullWidth
                   type="password"
                   value={formData.api_key}
@@ -376,7 +368,7 @@ export default function ModelManager() {
                   size="small"
                 />
                 <TextField
-                  label="API Base URL"
+                  label={t('models.manager.apiBaseUrl')}
                   fullWidth
                   value={formData.api_base_url}
                   onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
@@ -387,14 +379,14 @@ export default function ModelManager() {
                 <Divider sx={{ my: 1 }} />
 
                 <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Tag size={16} /> 支持的特性
+                  <Tag size={16} /> {t('models.manager.supportedFeatures')}
                 </Typography>
                 <TextField
-                  label="支持的特性"
+                  label={t('models.manager.supportedFeatures')}
                   fullWidth
                   value={formData.supported_features}
                   onChange={(e) => setFormData({ ...formData, supported_features: e.target.value })}
-                  placeholder="chat, vision, function_calling"
+                  placeholder={t('models.manager.featuresPlaceholder')}
                   helperText="用逗号分隔"
                   size="small"
                 />
@@ -402,13 +394,13 @@ export default function ModelManager() {
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={handleCloseDialog}>取消</Button>
+            <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
             <Button
               variant="contained"
               onClick={handleSave}
               disabled={!formData.id.trim()}
             >
-              {editingModel ? '保存' : '添加'}
+              {editingModel ? t('common.save') : t('common.add')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -421,14 +413,14 @@ export default function ModelManager() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          共 {models.length} 个模型
+          {t('models.manager.totalModels', { count: models.length })}
         </Typography>
         <Button
           variant="contained"
           startIcon={<Plus size={18} />}
           onClick={() => handleOpenDialog()}
         >
-          添加模型
+          {t('models.manager.addModel')}
         </Button>
       </Box>
 
@@ -442,13 +434,13 @@ export default function ModelManager() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>模型 ID</TableCell>
-              <TableCell>提供商</TableCell>
-              <TableCell>描述</TableCell>
-              <TableCell align="right">上下文</TableCell>
-              <TableCell align="right">输出限制</TableCell>
-              <TableCell align="center">API配置</TableCell>
-              <TableCell align="right">操作</TableCell>
+              <TableCell>{t('models.manager.modelId')}</TableCell>
+              <TableCell>{t('models.provider')}</TableCell>
+              <TableCell>{t('models.details.description')}</TableCell>
+              <TableCell align="right">{t('models.manager.contextLength')}</TableCell>
+              <TableCell align="right">{t('models.manager.maxOutputTokens')}</TableCell>
+              <TableCell align="center">API</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -502,7 +494,7 @@ export default function ModelManager() {
                   <TableCell align="center">
                     <Stack direction="row" spacing={0.5} justifyContent="center">
                       {model.api_key && (
-                        <Tooltip title="已配置 API Key">
+                        <Tooltip title={t('models.manager.configuredApiKey')}>
                           <Chip icon={<Key size={12} />} label="Key" size="small" color="success" />
                         </Tooltip>
                       )}
@@ -518,12 +510,12 @@ export default function ModelManager() {
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      <Tooltip title="编辑">
+                      <Tooltip title={t('common.edit')}>
                         <IconButton size="small" onClick={() => handleOpenDialog(model)}>
                           <Pencil size={16} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="删除">
+                      <Tooltip title={t('common.delete')}>
                         <IconButton size="small" color="error" onClick={() => handleDelete(model.id)}>
                           <Trash2 size={16} />
                         </IconButton>
@@ -538,51 +530,51 @@ export default function ModelManager() {
       </TableContainer>
 
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingModel ? '编辑模型' : '添加模型'}</DialogTitle>
+        <DialogTitle>{editingModel ? t('models.manager.editModel') : t('models.manager.addModel')}</DialogTitle>
         <DialogContent>
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, mt: 1 }}>
             <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
-              <Tab label="基本信息" />
-              <Tab label="高级设置" />
+              <Tab label={t('models.manager.basicInfo')} />
+              <Tab label={t('models.manager.advancedSettings')} />
             </Tabs>
           </Box>
 
           {activeTab === 0 && (
             <Stack spacing={2}>
               <TextField
-                label="模型 ID"
+                label={t('models.manager.modelId')}
                 fullWidth
                 value={formData.id}
                 onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                placeholder="例如: gemini-2.5-flash"
+                placeholder={t('models.manager.modelIdPlaceholder')}
               />
               <TextField
-                label="提供商"
+                label={t('models.provider')}
                 fullWidth
                 value={formData.owned_by}
                 onChange={(e) => setFormData({ ...formData, owned_by: e.target.value })}
-                placeholder="例如: google, anthropic"
+                placeholder={t('models.manager.providerPlaceholder')}
               />
               <TextField
-                label="描述"
+                label={t('models.details.description')}
                 fullWidth
                 multiline
                 minRows={2}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="模型描述信息"
+                placeholder={t('models.manager.descriptionPlaceholder')}
               />
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="上下文长度"
+                  label={t('models.manager.contextLength')}
                   fullWidth
                   value={formData.context_length}
                   onChange={(e) => setFormData({ ...formData, context_length: parseContextLength(e.target.value) })}
-                  placeholder="例如: 1M, 128K, 4096"
+                  placeholder={t('models.manager.contextLengthPlaceholder')}
                   helperText={`=${formatContextLength(formData.context_length)} tokens`}
                 />
                 <TextField
-                  label="最大输出Token"
+                  label={t('models.manager.maxOutputTokens')}
                   fullWidth
                   value={formData.max_output_tokens}
                   onChange={(e) => setFormData({ ...formData, max_output_tokens: parseInt(e.target.value) || 8192 })}
@@ -590,12 +582,12 @@ export default function ModelManager() {
                 />
               </Stack>
               <TextField
-                label="模型别名"
+                label={t('models.manager.aliases')}
                 fullWidth
                 value={formData.aliases}
                 onChange={(e) => setFormData({ ...formData, aliases: e.target.value })}
-                placeholder="用逗号分隔，例如: gpt-4, gpt4"
-                helperText="用户可以使用别名访问此模型"
+                placeholder={t('models.manager.aliasesPlaceholder')}
+                helperText={t('models.manager.aliasesHelper')}
               />
             </Stack>
           )}
@@ -603,22 +595,22 @@ export default function ModelManager() {
           {activeTab === 1 && (
             <Stack spacing={2}>
               <Alert severity="info">
-                以下为高级设置，可根据需要配置
+                {t('models.manager.advancedInfo')}
               </Alert>
               
               <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DollarSign size={16} /> 扣费规则（每1K token价格，美元）
+                <DollarSign size={16} /> {t('models.manager.pricingTitle')}
               </Typography>
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="输入价格 ($/1K tokens)"
+                  label={t('models.manager.inputPrice')}
                   type="number"
                   value={formData.pricing_input}
                   onChange={(e) => setFormData({ ...formData, pricing_input: parseFloat(e.target.value) || 0 })}
                   inputProps={{ min: 0, step: 0.0001 }}
                 />
                 <TextField
-                  label="输出价格 ($/1K tokens)"
+                  label={t('models.manager.outputPrice')}
                   type="number"
                   value={formData.pricing_output}
                   onChange={(e) => setFormData({ ...formData, pricing_output: parseFloat(e.target.value) || 0 })}
@@ -629,10 +621,10 @@ export default function ModelManager() {
               <Divider sx={{ my: 1 }} />
 
               <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Key size={16} /> API 配置（用于转发请求）
+                <Key size={16} /> {t('models.manager.apiConfig')}
               </Typography>
               <TextField
-                label="API Key"
+                label={t('models.manager.apiKey')}
                 fullWidth
                 type="password"
                 value={formData.api_key}
@@ -640,7 +632,7 @@ export default function ModelManager() {
                 placeholder="sk-..."
               />
               <TextField
-                label="API Base URL"
+                label={t('models.manager.apiBaseUrl')}
                 fullWidth
                 value={formData.api_base_url}
                 onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
@@ -650,27 +642,27 @@ export default function ModelManager() {
               <Divider sx={{ my: 1 }} />
 
               <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tag size={16} /> 支持的特性
+                <Tag size={16} /> {t('models.manager.supportedFeatures')}
               </Typography>
               <TextField
-                label="支持的特性"
+                label={t('models.manager.supportedFeatures')}
                 fullWidth
                 value={formData.supported_features}
                 onChange={(e) => setFormData({ ...formData, supported_features: e.target.value })}
-                placeholder="chat, vision, function_calling"
+                placeholder={t('models.manager.featuresPlaceholder')}
                 helperText="用逗号分隔"
               />
             </Stack>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>取消</Button>
+          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleSave}
             disabled={!formData.id.trim()}
           >
-            {editingModel ? '保存' : '添加'}
+            {editingModel ? t('common.save') : t('common.add')}
           </Button>
         </DialogActions>
       </Dialog>

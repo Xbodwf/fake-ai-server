@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -16,6 +17,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 import type { Invoice } from '../../types.js';
 
@@ -27,6 +29,7 @@ interface BillingInfo {
 export function UserBillingPage() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,21 +70,17 @@ export function UserBillingPage() {
   };
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Billing & Invoices
+          {t('billing.title')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Manage your account balance and view invoices
+          {t('billing.description')}
         </Typography>
       </Box>
 
@@ -96,13 +95,13 @@ export function UserBillingPage() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Current Balance
+              {t('billing.currentBalance')}
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main' }}>
               ${billingInfo?.balance.toFixed(2) || '0.00'}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
-              Available for API usage
+              {t('billing.availableForUsage')}
             </Typography>
           </CardContent>
         </Card>
@@ -112,19 +111,19 @@ export function UserBillingPage() {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Invoices
+            {t('billing.invoices')}
           </Typography>
           {billingInfo && billingInfo.invoices.length > 0 ? (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                    <TableCell>Period</TableCell>
-                    <TableCell align="right">Usage (Tokens)</TableCell>
-                    <TableCell align="right">Total Cost</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell>Due Date</TableCell>
+                    <TableCell>{t('billing.period')}</TableCell>
+                    <TableCell align="right">{t('billing.usage')}</TableCell>
+                    <TableCell align="right">{t('dashboard.totalCost')}</TableCell>
+                    <TableCell>{t('billing.status')}</TableCell>
+                    <TableCell>{t('billing.created')}</TableCell>
+                    <TableCell>{t('billing.dueDate')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -154,7 +153,7 @@ export function UserBillingPage() {
             </TableContainer>
           ) : (
             <Typography sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-              No invoices yet
+              {t('billing.noInvoices')}
             </Typography>
           )}
         </CardContent>
@@ -164,7 +163,7 @@ export function UserBillingPage() {
       <Card sx={{ mt: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Billing Information
+            {t('billing.billingInformation')}
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
             • Your account uses a pre-paid model. You need to maintain a positive balance to use the API.

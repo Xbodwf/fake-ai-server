@@ -160,7 +160,7 @@ export interface Invoice {
   dueDate: number;
 }
 
-// Action 定义
+// Action 定义（自定义 Action）
 export interface Action {
   id: string;
   name: string;
@@ -185,6 +185,180 @@ export interface Action {
   tags?: string[];
   rating?: number;                // 用户评分
   usageCount?: number;            // 使用次数
+}
+
+// 内置 Action 定义
+export interface ActionDefinition {
+  id: string;                     // 唯一标识，如 'phantom/call-model'
+  name: string;                   // 显示名称
+  description: string;            // 描述
+  version: string;                // 版本号
+  author: string;                 // 作者
+
+  // 输入参数定义
+  inputs: {
+    [key: string]: {
+      description: string;
+      required: boolean;
+      default?: any;
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+      enum?: any[];                // 可选值列表
+    };
+  };
+
+  // 输出定义
+  outputs: {
+    [key: string]: {
+      description: string;
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+    };
+  };
+
+  // 元数据
+  tags?: string[];
+  category?: 'model' | 'transform' | 'storage' | 'notification' | 'custom';
+}
+
+// 工作流步骤定义
+export interface WorkflowStep {
+  id: string;                     // 步骤 ID，如 'step1'
+  name: string;                   // 显示名称
+  uses: string;                   // 使用的 Action，如 'phantom/call-model@v1'
+
+  // 输入参数
+  with?: {
+    [key: string]: any;
+  };
+
+  // 条件执行
+  if?: string;                    // 条件表达式
+
+  // 循环
+  foreach?: {
+    items: string;                // 数组表达式
+    variable: string;             // 循环变量名
+  };
+
+  // 并行执行
+  parallel?: boolean;
+
+  // 错误处理
+  continueOnError?: boolean;
+  timeout?: number;               // 超时时间（秒）
+
+  // 重试
+  retry?: {
+    maxAttempts: number;
+    delay: number;                // 延迟时间（毫秒）
+  };
+}
+
+// 工作流定义
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+
+  // 工作流触发条件
+  triggers?: {
+    manual?: boolean;             // 手动触发
+    schedule?: string;            // Cron 表达式
+    webhook?: {
+      path: string;
+      events?: string[];
+    };
+  };
+
+  // 输入参数
+  inputs?: {
+    [key: string]: {
+      description: string;
+      required: boolean;
+      default?: any;
+      type: string;
+    };
+  };
+
+  // 环境变量
+  env?: {
+    [key: string]: string;
+  };
+
+  // 工作流步骤
+  steps: WorkflowStep[];
+
+  // 输出
+  outputs?: {
+    [key: string]: {
+      description: string;
+      value: string;               // 引用某个 step 的输出
+    };
+  };
+
+  // 元数据
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  isPublic: boolean;
+  tags?: string[];
+}
+
+// 步骤执行记录
+export interface StepRun {
+  id: string;
+  stepId: string;
+  status: 'pending' | 'running' | 'success' | 'failure' | 'skipped';
+
+  // 输入和输出
+  inputs?: Record<string, any>;
+  outputs?: Record<string, any>;
+
+  // 时间戳
+  startedAt: number;
+  completedAt?: number;
+  duration?: number;
+
+  // 日志
+  logs?: string;
+
+  // 错误
+  error?: {
+    message: string;
+    code?: string;
+  };
+}
+
+// 工作流运行记录
+export interface WorkflowRun {
+  id: string;
+  workflowId: string;
+  userId: string;
+
+  // 执行状态
+  status: 'pending' | 'running' | 'success' | 'failure' | 'cancelled';
+
+  // 输入和输出
+  inputs?: Record<string, any>;
+  outputs?: Record<string, any>;
+
+  // 步骤执行记录
+  stepRuns: StepRun[];
+
+  // 时间戳
+  startedAt: number;
+  completedAt?: number;
+  duration?: number;
+
+  // 日志
+  logs?: string;
+
+  // 错误信息
+  error?: {
+    message: string;
+    stepId?: string;
+    code?: string;
+  };
 }
 
 // 主题配置

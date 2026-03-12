@@ -1,6 +1,6 @@
 import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join } from 'path';
-import type { Model, ApiKey, User, UsageRecord, Invoice, Action } from './types.js';
+import type { Model, ApiKey, User, UsageRecord, Invoice, Action, Workflow } from './types.js';
 import { randomBytes } from 'crypto';
 
 const DATA_DIR = join(process.cwd(), 'data');
@@ -11,6 +11,7 @@ const USERS_FILE = join(DATA_DIR, 'users.json');
 const USAGE_RECORDS_FILE = join(DATA_DIR, 'usage_records.json');
 const INVOICES_FILE = join(DATA_DIR, 'invoices.json');
 const ACTIONS_FILE = join(DATA_DIR, 'actions.json');
+const WORKFLOWS_FILE = join(DATA_DIR, 'workflows.json');
 
 export interface ServerConfig {
   port: number;
@@ -545,12 +546,20 @@ export function getActionById(id: string): Action | undefined {
   return actions.find(a => a.id === id);
 }
 
+export function getActionByName(name: string): Action | undefined {
+  return actions.find(a => a.name === name);
+}
+
 export function getActionsByCreator(userId: string): Action[] {
   return actions.filter(a => a.createdBy === userId);
 }
 
 export function getPublicActions(): Action[] {
   return actions.filter(a => a.isPublic);
+}
+
+export function getPublicAndUserActions(userId?: string): Action[] {
+  return actions.filter(a => a.isPublic || (userId && a.createdBy === userId));
 }
 
 export async function createAction(action: Omit<Action, 'id' | 'createdAt' | 'updatedAt' | 'version'>): Promise<Action> {
@@ -596,4 +605,71 @@ export async function incrementActionUsage(id: string): Promise<void> {
       usageCount: (action.usageCount || 0) + 1,
     });
   }
+}
+
+// ==================== 工作流管理 ====================
+
+let workflows: Workflow[] = [];
+
+export async function loadWorkflows(): Promise<Workflow[]> {
+  if (workflows.length > 0) return workflows;
+
+  try {
+    await ensureDir();
+    await ensureFile(WORKFLOWS_FILE, []);
+    const content = await readFile(WORKFLOWS_FILE, 'utf-8');
+    workflows = JSON.parse(content);
+    return workflows;
+  } catch (e) {
+    console.warn('[Storage] 加载工作流失败:', e);
+    workflows = [];
+    return workflows;
+  }
+}
+
+async function saveWorkflows(): Promise<void> {
+  await writeFile(WORKFLOWS_FILE, JSON.stringify(workflows, null, 2));
+}
+
+export function getAllWorkflows(): Workflow[] {
+  return workflows;
+}
+
+export function getWorkflowById(id: string): Workflow | undefined {
+  return workflows.find(w => w.id === id);
+}
+
+export function getWorkflowsByCreator(userId: string): Workflow[] {
+  return workflows.filter(w => w.createdBy === userId);
+}
+
+export function getPublicWorkflows(): Workflow[] {
+  return workflows.filter(w => w.isPublic);
+}
+
+export async function createWorkflow(workflow: Workflow): Promise<Workflow> {
+  workflows.push(workflow);
+  await saveWorkflows();
+  return workflow;
+}
+
+export async function updateWorkflow(id: string, updates: Partial<Workflow>): Promise<Workflow | null> {
+  const index = workflows.findIndex(w => w.id === id);
+  if (index === -1) return null;
+
+  workflows[index] = {
+    ...workflows[index],
+    ...updates,
+  };
+  await saveWorkflows();
+  return workflows[index];
+}
+
+export async function deleteWorkflow(id: string): Promise<boolean> {
+  const index = workflows.findIndex(w => w.id === id);
+  if (index === -1) return false;
+
+  workflows.splice(index, 1);
+  await saveWorkflows();
+  return true;
 }

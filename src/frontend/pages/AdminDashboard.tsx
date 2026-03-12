@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Box,
@@ -11,6 +12,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 
 interface AdminStats {
@@ -34,6 +36,7 @@ interface UsageStats {
 export function AdminDashboard() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,11 +72,7 @@ export function AdminDashboard() {
   };
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -81,10 +80,10 @@ export function AdminDashboard() {
       {/* 头部 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-          Admin Dashboard
+          {t('admin.dashboard')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          System overview and management
+          {t('admin.systemOverview')}
         </Typography>
       </Box>
 
@@ -96,19 +95,19 @@ export function AdminDashboard() {
 
       {/* 系统统计 */}
       <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-        System Statistics
+        {t('admin.systemStatistics')}
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Users
+              {t('admin.totalUsers')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalUsers || 0}
             </Typography>
             <Typography variant="caption" sx={{ color: 'success.main' }}>
-              {stats?.activeUsers || 0} active
+              {stats?.activeUsers || 0} {t('common.active')}
             </Typography>
           </CardContent>
         </Card>
@@ -116,7 +115,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Admin Users
+              {t('admin.adminUsers')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.adminUsers || 0}
@@ -127,7 +126,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total API Keys
+              {t('admin.totalApiKeys')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalApiKeys || 0}
@@ -138,7 +137,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Models
+              {t('admin.totalModels')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {stats?.totalModels || 0}
@@ -149,13 +148,13 @@ export function AdminDashboard() {
 
       {/* 使用统计 */}
       <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-        Usage Analytics
+        {t('admin.usageAnalytics')}
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Balance
+              {t('admin.totalBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${usageStats?.totalBalance.toFixed(2) || '0.00'}
@@ -166,7 +165,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Average Balance
+              {t('admin.averageBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${usageStats?.averageBalance.toFixed(2) || '0.00'}
@@ -177,7 +176,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Usage
+              {t('admin.totalUsage')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {usageStats?.totalUsage || 0} tokens
@@ -188,7 +187,7 @@ export function AdminDashboard() {
         <Card>
           <CardContent>
             <Typography color="textSecondary" gutterBottom>
-              Total Cost
+              {t('admin.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               ${usageStats?.totalCost.toFixed(4) || '0.0000'}
@@ -201,14 +200,14 @@ export function AdminDashboard() {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Quick Actions
+            {t('admin.quickActions')}
           </Typography>
           <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               onClick={() => navigate('/console/users')}
             >
-              Manage Users
+              {t('admin.manageUsers')}
             </Button>
           </Stack>
         </CardContent>

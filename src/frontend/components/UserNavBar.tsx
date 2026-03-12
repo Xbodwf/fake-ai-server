@@ -17,8 +17,12 @@ import {
 import { Menu as MenuIcon, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export function UserNavBar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -27,12 +31,13 @@ export function UserNavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const menuItems = [
-    { label: 'Dashboard', path: '/dashboard' },
-    { label: 'API Keys', path: '/api-keys' },
-    { label: 'Usage', path: '/usage' },
-    { label: 'Billing', path: '/billing' },
-    { label: 'Profile', path: '/profile' },
-    { label: 'Actions', path: '/actions' },
+    { label: t('userNav.dashboard'), path: '/dashboard' },
+    { label: t('nav.modelMarketplace'), path: '/models' },
+    { label: t('userNav.apiKeys'), path: '/api-keys' },
+    { label: t('userNav.usage'), path: '/usage' },
+    { label: t('userNav.billing'), path: '/billing' },
+    { label: t('userNav.profile'), path: '/profile' },
+    { label: t('userNav.actions'), path: '/actions' },
   ];
 
   const handleLogout = () => {
@@ -49,7 +54,7 @@ export function UserNavBar() {
     <Box sx={{ width: 250 }}>
       <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-          Menu
+          {t('nav.home')}
         </Typography>
       </Box>
       <List>
@@ -72,7 +77,7 @@ export function UserNavBar() {
           startIcon={<LogOut size={18} />}
           onClick={handleLogout}
         >
-          Logout
+          {t('common.logout')}
         </Button>
       </Box>
     </Box>
@@ -123,13 +128,15 @@ export function UserNavBar() {
                 <Typography variant="body2" sx={{ mr: 2 }}>
                   {user?.username}
                 </Typography>
+                <ThemeSwitcher />
+                <LanguageSwitcher />
                 <Button
                   variant="outlined"
                   size="small"
                   startIcon={<LogOut size={18} />}
                   onClick={handleLogout}
                 >
-                  Logout
+                  {t('common.logout')}
                 </Button>
               </>
             )}

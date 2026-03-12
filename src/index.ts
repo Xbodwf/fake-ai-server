@@ -26,15 +26,19 @@ import {
   loadUsageRecords,
   loadInvoices,
   loadActions,
+  loadWorkflows,
   createUsageRecord,
   getUserById,
   updateUser,
+  getPublicAndUserActions,
 } from './storage.js';
 import { calculateCost, estimateTokens } from './billing.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import adminRoutes from './routes/admin.js';
 import actionsRoutes from './routes/actions.js';
+import workflowRoutes from './routes/workflows.js';
+import workflowRunRoutes from './routes/workflow-runs.js';
 import openaiRoutes from './routes/openai.js';
 import { authMiddleware, adminMiddleware, errorHandler } from './middleware.js';
 
@@ -73,6 +77,7 @@ app.use((req, res, next) => {
   await loadUsageRecords();
   await loadInvoices();
   await loadActions();
+  await loadWorkflows();
 })();
 
 // ==================== 认证路由 ====================
@@ -83,6 +88,10 @@ app.use('/api/user', authMiddleware, userRoutes);
 
 // ==================== Actions 路由 ====================
 app.use('/api', actionsRoutes);
+
+// ==================== 工作流路由 ====================
+app.use('/api', authMiddleware, workflowRoutes);
+app.use('/api', authMiddleware, workflowRunRoutes);
 
 // ==================== 管理员路由 ====================
 app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
@@ -1007,7 +1016,7 @@ app.post('/v1beta/models/:modelId:streamGenerateContent', async (req: Request, r
   return handleGeminiRequest(req, res, modelId, true);
 });
 
-// GET /v1beta/models - Gemini models list
+// GET /v1beta/models - Gemini models list (包括 Actions)
 app.get('/v1beta/models', (req: Request, res: Response) => {
   const models = getAllModels().map(m => ({
     name: `models/${m.id}`,
@@ -1018,7 +1027,19 @@ app.get('/v1beta/models', (req: Request, res: Response) => {
     supportedGenerationMethods: ['generateContent'],
   }));
 
-  res.json({ models });
+  // 添加 Actions 作为模型
+  const userId = (req as any).user?.id;
+  const actions = getPublicAndUserActions(userId);
+  const actionModels = actions.map(action => ({
+    name: `models/actions/${action.name}`,
+    displayName: `actions/${action.name}`,
+    description: action.description || `Action: ${action.name}`,
+    inputTokenLimit: 4096,
+    outputTokenLimit: 2048,
+    supportedGenerationMethods: ['generateContent'],
+  }));
+
+  res.json({ models: [...models, ...actionModels] });
 });
 
 // GET /v1beta/models/:modelId - Gemini model info

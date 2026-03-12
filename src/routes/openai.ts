@@ -3,8 +3,9 @@ import type { ChatCompletionRequest, PendingRequest } from '../types.js';
 import { addPendingRequest, removePendingRequest } from '../requestStore.js';
 import { buildResponse, buildStreamChunk, buildStreamDone, generateRequestId } from '../responseBuilder.js';
 import { broadcastRequest, getConnectedClientsCount } from '../websocket.js';
-import { getAllModels, getModel, validateApiKey, getUserById, updateUser, createUsageRecord } from '../storage.js';
+import { getAllModels, getModel, validateApiKey, getUserById, updateUser, createUsageRecord, getAllActions, getActionByName, getPublicAndUserActions } from '../storage.js';
 import { calculateCost, estimateTokens } from '../billing.js';
+import { executeAction } from '../actions/executor.js';
 
 const router: Router = Router();
 
@@ -34,12 +35,29 @@ function extractApiKey(req: Request): string | null {
 }
 
 /**
- * GET /v1/models - 获取模型列表
+ * GET /v1/models - 获取模型列表（包括 Actions）
  */
 router.get('/models', (req: Request, res: Response) => {
+  const models = getAllModels();
+
+  // 添加 Actions 作为模型
+  const userId = (req as any).user?.id;
+  const actions = getPublicAndUserActions(userId);
+  const actionModels = actions.map(action => ({
+    id: `actions/${action.name}`,
+    object: 'model',
+    created: action.createdAt,
+    owned_by: 'user',
+    description: action.description || `Action: ${action.name}`,
+    context_length: 4096,
+    max_output_tokens: 2048,
+    type: 'action',
+    actionId: action.id,
+  }));
+
   res.json({
     object: 'list',
-    data: getAllModels(),
+    data: [...models, ...actionModels],
   });
 });
 
@@ -69,6 +87,79 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         type: 'invalid_request_error',
       }
     });
+  }
+
+  // 检查是否为 Action 模型
+  if (body.model.startsWith('actions/')) {
+    const actionName = body.model.replace('actions/', '');
+    const action = getActionByName(actionName);
+
+    if (!action) {
+      return res.status(404).json({
+        error: {
+          message: `Action '${actionName}' not found`,
+          type: 'invalid_request_error',
+          code: 'action_not_found',
+        }
+      });
+    }
+
+    // 从 messages 中提取输入参数
+    // 假设最后一条消息的内容是 JSON 格式的输入
+    const lastMessage = body.messages[body.messages.length - 1];
+    let input: Record<string, any> = {};
+
+    try {
+      if (typeof lastMessage.content === 'string') {
+        // 尝试解析为 JSON
+        try {
+          input = JSON.parse(lastMessage.content);
+        } catch {
+          // 如果不是 JSON，作为单个参数传递
+          input = { text: lastMessage.content };
+        }
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid input format for Action',
+          type: 'invalid_request_error',
+        }
+      });
+    }
+
+    try {
+      // 执行 Action
+      const result = await executeAction(action, input);
+
+      // 返回结果
+      return res.json({
+        id: generateRequestId(),
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: body.model,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: JSON.stringify(result),
+          },
+          finish_reason: 'stop',
+        }],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+        },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        error: {
+          message: error instanceof Error ? error.message : 'Action execution failed',
+          type: 'action_execution_error',
+        }
+      });
+    }
   }
 
   const modelExists = getModel(body.model);
