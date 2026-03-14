@@ -60,7 +60,7 @@ export function preprocessActionCode(code: string): string {
  */
 export function extractExecuteFunction(compiledCode: string): Function {
   // 创建一个模块对象来捕获导出
-  const module = { exports: {} };
+  const module: { exports: any } = { exports: {} };
 
   // 在沙箱中执行代码
   const func = new Function('module', 'exports', compiledCode);
@@ -79,7 +79,7 @@ export function extractExecuteFunction(compiledCode: string): Function {
  * @returns 元数据对象
  */
 export function extractMetadata(compiledCode: string): any {
-  const module = { exports: {} };
+  const module: { exports: any } = { exports: {} };
 
   const func = new Function('module', 'exports', compiledCode);
   func(module, module.exports);
