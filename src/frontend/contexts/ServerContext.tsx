@@ -52,7 +52,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       }
       const res = await fetch('/api/models', { headers });
       const data = await res.json();
-      setModels(data.models || []);
+      setModels(data.data || data.models || []);
     } catch (error) {
       console.error('Failed to fetch models:', error);
     }

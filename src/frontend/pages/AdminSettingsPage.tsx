@@ -152,9 +152,9 @@ export function AdminSettingsPage() {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 {t('admin.emailjsConfig')}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
                 {t('admin.emailjsConfigDesc')}
-              </Typography>
+              </Alert>
 
               <Stack spacing={2}>
                 <TextField

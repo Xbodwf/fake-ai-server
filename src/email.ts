@@ -30,6 +30,10 @@ export async function sendVerificationEmail(email: string, code: string): Promis
       return false;
     }
 
+    console.log('[Email] Sending verification email to:', email);
+    console.log('[Email] Using service:', settings.emailjs.serviceId);
+    console.log('[Email] Using template:', settings.emailjs.templateId);
+
     // 发送邮件
     const response = await emailjs.send(
       settings.emailjs.serviceId,
@@ -47,8 +51,13 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
     console.log('[Email] Verification email sent successfully:', response);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Email] Failed to send verification email:', error);
+    console.error('[Email] Error details:', {
+      status: error.status,
+      text: error.text,
+      message: error.message,
+    });
     return false;
   }
 }

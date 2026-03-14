@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container,
@@ -26,18 +26,19 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   // 倒计时
-  useState(() => {
+  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-  });
+  }, [countdown]);
 
   const handleSendCode = async () => {
     if (!email) {
@@ -47,11 +48,13 @@ export function RegisterPage() {
 
     setSendingCode(true);
     setError('');
+    setSuccess('');
 
     try {
       await axios.post('/api/auth/send-verification-code', { email });
       setCodeSent(true);
       setCountdown(60);
+      setSuccess(t('auth.codeSentSuccess'));
       setError('');
     } catch (err: any) {
       setError(err.response?.data?.error || t('auth.sendCodeFailed'));
@@ -132,6 +135,12 @@ export function RegisterPage() {
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
+              </Alert>
+            )}
+
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
               </Alert>
             )}
 
