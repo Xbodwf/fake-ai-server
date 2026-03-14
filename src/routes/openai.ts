@@ -6,7 +6,7 @@ import { broadcastRequest, getConnectedClientsCount } from '../websocket.js';
 import { getAllModels, getModel, validateApiKey, getUserById, updateUser, createUsageRecord, getAllActions, getActionByName, getPublicAndUserActions } from '../storage.js';
 import { calculateCost, calculateTokens } from '../billing.js';
 import { executeAction } from '../actions/executor.js';
-import { forwardChatRequest } from '../forwarder.js';
+import { forwardChatRequest, forwardStreamRequest } from '../forwarder.js';
 
 const router: Router = Router();
 
@@ -299,53 +299,24 @@ async function handleChatRequest(
     console.log(`[Forwarder] 转发模式：${model.api_type || 'openai'} API`);
 
     if (isStream) {
-      // 流式转发：不允许用户模拟
-      console.log('[Forwarder] 流式转发，不允许用户模拟');
+      // 流式转发：直接透传流式响应
+      console.log('[Forwarder] 流式转发，直接透传');
 
-      const forwardResult = await forwardChatRequest(model, body);
-
-      if (!forwardResult.success) {
-        return res.status(502).json({
-          error: {
-            message: `转发失败: ${forwardResult.error}`,
-            type: 'forwarding_error',
-            code: 'forwarding_failed',
-          }
-        });
-      }
-
-      // 记录使用情况
-      if (userId && apiKeyId) {
-        const response = forwardResult.response;
-        const cost = calculateCost(
-          response.usage?.prompt_tokens || 0,
-          response.usage?.completion_tokens || 0,
-          model
-        );
-
-        await createUsageRecord({
-          userId,
-          apiKeyId,
-          model: body.model,
-          endpoint: 'chat',
-          promptTokens: response.usage?.prompt_tokens || 0,
-          completionTokens: response.usage?.completion_tokens || 0,
-          totalTokens: response.usage?.total_tokens || 0,
-          cost,
-          timestamp: Date.now(),
-          requestId,
-        });
-
-        const user = getUserById(userId);
-        if (user) {
-          await updateUser(userId, {
-            balance: user.balance - cost,
-            totalUsage: user.totalUsage + (response.usage?.total_tokens || 0),
+      try {
+        await forwardStreamRequest(model, body, res);
+      } catch (error: any) {
+        console.error('[Forwarder] 流式转发失败:', error.message);
+        if (!res.headersSent) {
+          return res.status(502).json({
+            error: {
+              message: `转发失败: ${error.message}`,
+              type: 'forwarding_error',
+              code: 'forwarding_failed',
+            }
           });
         }
       }
-
-      return res.json(forwardResult.response);
+      return;
     } else {
       // 非流式转发：允许用户抢先回复
       console.log('[Forwarder] 非流式转发，允许用户抢先回复');

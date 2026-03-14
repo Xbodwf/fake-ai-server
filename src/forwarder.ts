@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { ChatCompletionRequest, Model } from './types.js';
+import type { Response } from 'express';
 
 /**
  * 转发请求到真实的 API
@@ -35,6 +36,53 @@ export async function forwardChatRequest(
     console.error(`[Forwarder] Error forwarding to ${apiType}:`, errorMessage);
     return { success: false, error: errorMessage };
   }
+}
+
+/**
+ * 转发流式请求
+ */
+export async function forwardStreamRequest(
+  model: Model,
+  body: ChatCompletionRequest,
+  res: Response
+): Promise<void> {
+  if (!model.api_base_url || !model.api_key) {
+    throw new Error('Model not configured for forwarding');
+  }
+
+  // 设置流式响应头
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  let url = model.api_base_url;
+  if (!url.includes('/chat/completions')) {
+    url = `${url}/chat/completions`;
+  }
+
+  const response = await axios.post(url, body, {
+    headers: {
+      'Authorization': `Bearer ${model.api_key}`,
+      'Content-Type': 'application/json',
+    },
+    timeout: 120000,
+    responseType: 'stream',
+  });
+
+  // 直接透传流
+  response.data.on('data', (chunk: Buffer) => {
+    res.write(chunk);
+  });
+
+  response.data.on('end', () => {
+    res.end();
+  });
+
+  response.data.on('error', (err: Error) => {
+    console.error('[Forwarder] Stream error:', err.message);
+    res.end();
+  });
 }
 
 /**
