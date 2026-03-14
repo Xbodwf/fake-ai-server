@@ -16,6 +16,7 @@ import {
   DialogActions,
   Typography,
   Divider,
+  Snackbar,
 } from '@mui/material';
 import { Search, X } from 'lucide-react';
 import { ModelCard } from '../components/ModelCard';
@@ -35,6 +36,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1]);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   // 获取唯一的提供商
   const providers = useMemo(() => {
@@ -89,6 +91,11 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
   };
 
   const handleSelect = (model: Model) => {
+    // 复制模型 ID 到剪贴板
+    navigator.clipboard.writeText(model.id).then(() => {
+      setSnackbarOpen(true);
+    });
+
     if (onSelectModel) {
       onSelectModel(model);
     }
@@ -311,6 +318,15 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
           </>
         )}
       </Dialog>
+
+      {/* 复制成功提示 */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarOpen(false)}
+        message={t('models.copiedToClipboard')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Container>
   );
 }

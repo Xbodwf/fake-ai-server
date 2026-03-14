@@ -127,6 +127,8 @@
     "context": "Context",
     "preview": "Preview",
     "select": "Select",
+    "composite": "Composite",
+    "copiedToClipboard": "Model ID copied to clipboard",
     "manager": {
       "totalModels": "{{count}} models total",
       "addModel": "Add Model",

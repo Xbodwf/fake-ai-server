@@ -6,10 +6,10 @@ import {
   Typography,
   Chip,
   Button,
-  Rating,
   Stack,
 } from '@mui/material';
 import { Zap, Eye } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Model } from '../../types.js';
 
 interface ModelCardProps {
@@ -19,8 +19,10 @@ interface ModelCardProps {
 }
 
 export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
+  const { t } = useTranslation();
+
   const formatPrice = (price?: number, unit?: string) => {
-    if (!price) return 'Free';
+    if (!price) return t('models.free');
     const unitLabel = unit === 'M' ? '/M tokens' : '/K tokens';
     return `$${price.toFixed(4)}${unitLabel}`;
   };
@@ -46,13 +48,13 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
               {model.id}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              by {model.owned_by}
+              {t('models.by')} {model.owned_by}
             </Typography>
           </Box>
           {model.isComposite && (
             <Chip
               icon={<Zap size={14} />}
-              label="Composite"
+              label={t('models.composite')}
               size="small"
               color="primary"
               variant="outlined"
@@ -62,7 +64,7 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
 
         {/* 描述 */}
         <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary', minHeight: 40 }}>
-          {model.description || 'No description available'}
+          {model.description || t('models.noDescription')}
         </Typography>
 
         {/* 特性标签 */}
@@ -87,12 +89,12 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
         <Stack spacing={0.5} sx={{ mb: 2 }}>
           {model.pricing?.input && (
             <Typography variant="caption">
-              Input: {formatPrice(model.pricing.input, model.pricing.unit)}
+              {t('models.details.input')}: {formatPrice(model.pricing.input, model.pricing.unit)}
             </Typography>
           )}
           {model.pricing?.output && (
             <Typography variant="caption">
-              Output: {formatPrice(model.pricing.output, model.pricing.unit)}
+              {t('models.details.output')}: {formatPrice(model.pricing.output, model.pricing.unit)}
             </Typography>
           )}
         </Stack>
@@ -100,18 +102,8 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
         {/* 上下文长度 */}
         {model.context_length && (
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Context: {(model.context_length / 1000).toFixed(0)}K tokens
+            {t('models.context')}: {(model.context_length / 1000).toFixed(0)}K {t('models.details.tokens')}
           </Typography>
-        )}
-
-        {/* 评分 */}
-        {model.pricing && (
-          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Rating value={3} readOnly size="small" />
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              (42 reviews)
-            </Typography>
-          </Box>
         )}
       </CardContent>
 
@@ -122,7 +114,7 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
             startIcon={<Eye size={16} />}
             onClick={() => onPreview(model)}
           >
-            Preview
+            {t('models.preview')}
           </Button>
         )}
         {onSelect && (
@@ -132,7 +124,7 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
             onClick={() => onSelect(model)}
             sx={{ ml: 'auto' }}
           >
-            Select
+            {t('models.select')}
           </Button>
         )}
       </CardActions>

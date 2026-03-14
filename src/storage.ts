@@ -239,7 +239,8 @@ export async function loadApiKeys(): Promise<ApiKey[]> {
     await ensureDir();
     await ensureFile(API_KEYS_FILE, []);
     const content = await readFile(API_KEYS_FILE, 'utf-8');
-    apiKeys = JSON.parse(content);
+    const parsed = JSON.parse(content);
+    apiKeys = Array.isArray(parsed) ? parsed : [];
     return apiKeys;
   } catch (e) {
     console.warn('[Storage] 加载 API Keys 失败:', e);

@@ -54,7 +54,7 @@ export function UserApiKeysPage() {
       const response = await axios.get('/api/user/api-keys', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setApiKeys(response.data);
+      setApiKeys(response.data.keys || []);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load API keys');
     } finally {
@@ -75,7 +75,7 @@ export function UserApiKeysPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setCreatedKey(response.data.key);
+      setCreatedKey(response.data.key.key); // 获取实际的 key 字符串
       setNewKeyName('');
       setShowCreateDialog(false);
       await fetchApiKeys();
@@ -178,7 +178,7 @@ export function UserApiKeysPage() {
                     <TableRow key={key.id}>
                       <TableCell>{key.name}</TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                        {key.key}
+                        {'sk-fake-••••••••••••••••'}
                       </TableCell>
                       <TableCell>
                         {new Date(key.createdAt).toLocaleDateString()}

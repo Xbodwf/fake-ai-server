@@ -127,6 +127,8 @@
     "context": "上下文",
     "preview": "预览",
     "select": "选择",
+    "composite": "组合模型",
+    "copiedToClipboard": "已复制模型 ID 到剪贴板",
     "manager": {
       "totalModels": "共 {{count}} 个模型",
       "addModel": "添加模型",
