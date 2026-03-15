@@ -74,10 +74,13 @@ export function CodeEditor({
   useEffect(() => {
     if (monaco && language === 'typescript') {
       // 添加 Action 沙箱类型定义
-      monaco.languages.typescript.typescriptDefaults.addExtraLib(
-        ACTION_SANDBOX_TYPES,
-        'action-sandbox.d.ts'
-      );
+      const ts = monaco.languages.typescript;
+      if (ts && 'typescriptDefaults' in ts) {
+        (ts as any).typescriptDefaults.addExtraLib(
+          ACTION_SANDBOX_TYPES,
+          'action-sandbox.d.ts'
+        );
+      }
     }
   }, [monaco, language]);
 

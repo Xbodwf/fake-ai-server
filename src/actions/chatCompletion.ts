@@ -3,6 +3,9 @@
  * 用于 Action 沙箱中调用，通过 HTTP 调用 /v1/chat 端点
  */
 
+// 声明全局变量，在VM沙箱中会被注入
+declare const __usageTracker: { promptTokens: number; completionTokens: number; userId?: string; apiKeyId?: string } | undefined;
+
 /**
  * 获取服务器基础 URL
  * 支持 Docker 环境和本地开发环境

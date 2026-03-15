@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import api from '../utils/api';
-import { formatDateTime, formatDate, getDatePart } from '../utils/dateUtils';
+import { formatDateTime, getDatePart } from '../utils/dateUtils';
 
 interface UsageRecord {
   id: string;

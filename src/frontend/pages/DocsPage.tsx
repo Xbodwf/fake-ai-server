@@ -88,7 +88,7 @@ function MethodBadge({ method }: { method: string }) {
   return <Chip label={method} size="small" color={colors[method] || 'default'} variant="outlined" />;
 }
 
-function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
+function CodeBlock({ code }: { code: string }) {
   return (
     <Paper
       sx={{

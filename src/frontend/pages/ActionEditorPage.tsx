@@ -14,14 +14,13 @@ import {
   Tabs,
   Tab,
   Divider,
-  Grid,
 } from '@mui/material';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { CodeEditor } from '../components/CodeEditor';
 import { DEFAULT_ACTION_CODE } from '../constants/actionTemplates';
-import { injectMetadata, extractMetadataFromCode, mergeMetadata } from '../utils/actionCodeUtils';
+import { injectMetadata, mergeMetadata } from '../utils/actionCodeUtils';
 import axios from 'axios';
 
 interface ActionMetadata {
@@ -34,6 +33,8 @@ interface ActionMetadata {
   inputs?: Record<string, any>;
   outputs?: Record<string, any>;
   models?: Record<string, any>;
+  schema?: Record<string, any>;
+  config?: Record<string, any>;
 }
 
 export function ActionEditorPage() {
@@ -210,7 +211,7 @@ export function ActionEditorPage() {
       {/* Tabs */}
       <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Container maxWidth="xl">
-          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+          <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
             <Tab label={t('actions.code')} />
             <Tab label={t('actions.metadata')} />
             <Tab label={t('actions.documentation')} />
@@ -287,8 +288,8 @@ export function ActionEditorPage() {
                   <Typography variant="subtitle2" sx={{ mb: 2 }}>
                     {t('common.name')}
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 2 }}>
+                    <Box sx={{ gridColumn: "span 1" }}>
                       <TextField
                         label={t('actions.name')}
                         value={metadata.name || ''}
@@ -296,8 +297,8 @@ export function ActionEditorPage() {
                         fullWidth
                         size="small"
                       />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ gridColumn: "span 1" }}>
                       <TextField
                         label={t('actions.version')}
                         value={metadata.version || ''}
@@ -305,8 +306,8 @@ export function ActionEditorPage() {
                         fullWidth
                         size="small"
                       />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ gridColumn: "span 1" }}>
                       <TextField
                         label={t('actions.author')}
                         value={metadata.author || ''}
@@ -314,8 +315,8 @@ export function ActionEditorPage() {
                         fullWidth
                         size="small"
                       />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ gridColumn: "span 1" }}>
                       <TextField
                         label={t('actions.category')}
                         value={metadata.category || ''}
@@ -323,8 +324,8 @@ export function ActionEditorPage() {
                         fullWidth
                         size="small"
                       />
-                    </Grid>
-                    <Grid item xs={12}>
+                    </Box>
+                    <Box>
                       <TextField
                         label={t('actions.description')}
                         value={metadata.description || ''}
@@ -334,8 +335,8 @@ export function ActionEditorPage() {
                         rows={3}
                         size="small"
                       />
-                    </Grid>
-                    <Grid item xs={12}>
+                    </Box>
+                    <Box>
                       <TextField
                         label={t('actions.tags')}
                         value={Array.isArray(metadata.tags) ? metadata.tags.join(', ') : ''}
@@ -346,8 +347,8 @@ export function ActionEditorPage() {
                         size="small"
                         helperText="Comma-separated tags"
                       />
-                    </Grid>
-                  </Grid>
+                    </Box>
+                  </Box>
                 </Box>
 
                 {/* Dynamic Configuration Fields from Schema */}
@@ -357,14 +358,14 @@ export function ActionEditorPage() {
                     <Typography variant="subtitle2" sx={{ mb: 2 }}>
                       {t('actions.config')}
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 2 }}>
                       {Object.entries(metadata.schema).map(([key, fieldSchema]: [string, any]) => {
                         const currentValue = metadata.config?.[key];
 
                         // Handle object type (nested properties)
                         if (fieldSchema.type === 'object' && fieldSchema.properties) {
                           return (
-                            <Grid item xs={12} key={key}>
+                            <Box key={key} sx={{ gridColumn: 'span 1' }}>
                               <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2 }}>
                                 <Typography variant="subtitle2" sx={{ mb: 2 }}>
                                   {fieldSchema.label || key}
@@ -374,9 +375,9 @@ export function ActionEditorPage() {
                                     {fieldSchema.description}
                                   </Typography>
                                 )}
-                                <Grid container spacing={2}>
+                                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 2 }}>
                                   {Object.entries(fieldSchema.properties).map(([propKey, propSchema]: [string, any]) => (
-                                    <Grid item xs={12} sm={6} key={propKey}>
+                                    <Box key={propKey}>
                                       <TextField
                                         label={propSchema.label || propKey}
                                         value={currentValue?.[propKey] || propSchema.default || ''}
@@ -390,18 +391,18 @@ export function ActionEditorPage() {
                                         size="small"
                                         helperText={propSchema.description}
                                       />
-                                    </Grid>
+                                    </Box>
                                   ))}
-                                </Grid>
+                                </Box>
                               </Box>
-                            </Grid>
+                            </Box>
                           );
                         }
 
                         // Handle number type
                         if (fieldSchema.type === 'number') {
                           return (
-                            <Grid item xs={12} sm={6} key={key}>
+                            <Box key={key}>
                               <TextField
                                 label={fieldSchema.label || key}
                                 type="number"
@@ -420,14 +421,14 @@ export function ActionEditorPage() {
                                   step: fieldSchema.step,
                                 }}
                               />
-                            </Grid>
+                            </Box>
                           );
                         }
 
                         // Handle string type
                         if (fieldSchema.type === 'string') {
                           return (
-                            <Grid item xs={12} sm={6} key={key}>
+                            <Box key={key}>
                               <TextField
                                 label={fieldSchema.label || key}
                                 value={currentValue ?? fieldSchema.default ?? ''}
@@ -440,14 +441,14 @@ export function ActionEditorPage() {
                                 size="small"
                                 helperText={fieldSchema.description}
                               />
-                            </Grid>
+                            </Box>
                           );
                         }
 
                         // Handle boolean type
                         if (fieldSchema.type === 'boolean') {
                           return (
-                            <Grid item xs={12} sm={6} key={key}>
+                            <Box key={key}>
                               <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                                 <Typography variant="body2" sx={{ mr: 2 }}>
                                   {fieldSchema.label || key}
@@ -462,13 +463,13 @@ export function ActionEditorPage() {
                                   }}
                                 />
                               </Box>
-                            </Grid>
+                            </Box>
                           );
                         }
 
                         return null;
                       })}
-                    </Grid>
+                    </Box>
                   </Box>
                 )}
 
