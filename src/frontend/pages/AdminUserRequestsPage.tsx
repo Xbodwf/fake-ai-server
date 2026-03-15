@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { formatDateTime } from '../utils/dateUtils';
 import axios from 'axios';
 import type { UsageRecord } from '../../types.js';
 
@@ -59,8 +60,8 @@ export function AdminUserRequestsPage() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN');
+  const formatDateDisplay = (timestamp: number) => {
+    return formatDateTime(timestamp, 'zh-CN');
   };
 
   if (loading) {
@@ -113,7 +114,7 @@ export function AdminUserRequestsPage() {
                 <TableBody>
                   {requests.map((req) => (
                     <TableRow key={req.id}>
-                      <TableCell>{formatDate(req.timestamp)}</TableCell>
+                      <TableCell>{formatDateDisplay(req.timestamp)}</TableCell>
                       <TableCell>
                         <Chip label={req.model} size="small" variant="outlined" />
                       </TableCell>

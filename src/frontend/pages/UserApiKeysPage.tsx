@@ -23,8 +23,15 @@ import {
   IconButton,
   Chip,
   Snackbar,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
-import { Copy, Trash2, Plus } from 'lucide-react';
+import { Copy, Trash2, Plus, Edit2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { copyToClipboard } from '../utils/clipboard';
@@ -40,8 +47,13 @@ export function UserApiKeysPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
+  const [editKeyName, setEditKeyName] = useState('');
+  const [editKeyEnabled, setEditKeyEnabled] = useState(true);
+  const [editPermissions, setEditPermissions] = useState<any>({});
 
   useEffect(() => {
     if (!user || !token) {
@@ -104,6 +116,35 @@ export function UserApiKeysPage() {
     copyToClipboard(text)
       .then(() => setSuccess(t('apiKeys.copyToClipboard')))
       .catch(() => setError(t('errors.failedToCopy')));
+  };
+
+  const handleEditKey = (key: ApiKey) => {
+    setSelectedKey(key);
+    setEditKeyName(key.name);
+    setEditKeyEnabled(key.enabled);
+    setEditPermissions(key.permissions || {});
+    setShowEditDialog(true);
+  };
+
+  const handleSaveKey = async () => {
+    if (!selectedKey) return;
+
+    try {
+      await axios.put(
+        `/api/user/api-keys/${selectedKey.id}`,
+        {
+          name: editKeyName,
+          enabled: editKeyEnabled,
+          permissions: editPermissions,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setShowEditDialog(false);
+      setSuccess(t('apiKeys.updateSuccess'));
+      await fetchApiKeys();
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('apiKeys.failedToUpdate'));
+    }
   };
 
   if (loading) {
@@ -183,7 +224,7 @@ export function UserApiKeysPage() {
                     <TableRow key={key.id}>
                       <TableCell>{key.name}</TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                        {'sk-fake-••••••••••••••••'}
+                        {key.key || 'sk-fake-••••••••••••••••'}
                       </TableCell>
                       <TableCell>
                         {new Date(key.createdAt).toLocaleDateString()}
@@ -201,13 +242,22 @@ export function UserApiKeysPage() {
                         />
                       </TableCell>
                       <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteKey(key.id)}
-                          color="error"
-                        >
-                          <Trash2 size={18} />
-                        </IconButton>
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditKey(key)}
+                            title={t('common.edit')}
+                          >
+                            <Edit2 size={18} />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteKey(key.id)}
+                            color="error"
+                          >
+                            <Trash2 size={18} />
+                          </IconButton>
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -235,6 +285,89 @@ export function UserApiKeysPage() {
           <Button onClick={() => setShowCreateDialog(false)}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={handleCreateKey}>
             {t('actions.create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 编辑 API Key 对话框 */}
+      <Dialog open={showEditDialog} onClose={() => setShowEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('apiKeys.editKey')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label={t('apiKeys.keyName')}
+              value={editKeyName}
+              onChange={(e) => setEditKeyName(e.target.value)}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={editKeyEnabled}
+                  onChange={(e) => setEditKeyEnabled(e.target.checked)}
+                />
+              }
+              label={t('common.enabled')}
+            />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mt: 2 }}>
+              {t('apiKeys.permissions')}
+            </Typography>
+            <TextField
+              fullWidth
+              label={t('apiKeys.allowedModels')}
+              placeholder="model1,model2"
+              value={(editPermissions.models || []).join(',')}
+              onChange={(e) => setEditPermissions({
+                ...editPermissions,
+                models: e.target.value.split(',').filter(m => m.trim()),
+              })}
+              size="small"
+            />
+            <FormControl fullWidth size="small">
+              <InputLabel>{t('apiKeys.modelsMode')}</InputLabel>
+              <Select
+                value={editPermissions.modelsMode || 'whitelist'}
+                onChange={(e) => setEditPermissions({
+                  ...editPermissions,
+                  modelsMode: e.target.value,
+                })}
+                label={t('apiKeys.modelsMode')}
+              >
+                <MenuItem value="whitelist">{t('apiKeys.whitelist')}</MenuItem>
+                <MenuItem value="blacklist">{t('apiKeys.blacklist')}</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label={t('apiKeys.allowedActions')}
+              placeholder="action1,action2"
+              value={(editPermissions.actions || []).join(',')}
+              onChange={(e) => setEditPermissions({
+                ...editPermissions,
+                actions: e.target.value.split(',').filter(a => a.trim()),
+              })}
+              size="small"
+            />
+            <FormControl fullWidth size="small">
+              <InputLabel>{t('apiKeys.actionsMode')}</InputLabel>
+              <Select
+                value={editPermissions.actionsMode || 'whitelist'}
+                onChange={(e) => setEditPermissions({
+                  ...editPermissions,
+                  actionsMode: e.target.value,
+                })}
+                label={t('apiKeys.actionsMode')}
+              >
+                <MenuItem value="whitelist">{t('apiKeys.whitelist')}</MenuItem>
+                <MenuItem value="blacklist">{t('apiKeys.blacklist')}</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEditDialog(false)}>{t('common.cancel')}</Button>
+          <Button variant="contained" onClick={handleSaveKey}>
+            {t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -24,8 +24,12 @@ import {
   IconButton,
   Alert,
   Tooltip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
-import { Edit2, Trash2, FileText, Copy, UserPlus } from 'lucide-react';
+import { Edit2, Trash2, FileText, Copy, UserPlus, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { copyToClipboard } from '../utils/clipboard';
@@ -60,6 +64,13 @@ export function AdminUsersPage() {
   const [editEnabled, setEditEnabled] = useState(true);
   const [snackbar, setSnackbar] = useState('');
 
+  // 搜索和筛选状态
+  const [searchText, setSearchText] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [filterEnabled, setFilterEnabled] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
   useEffect(() => {
     if (!user || !token || user.role !== 'admin') {
       navigate('/login');
@@ -67,11 +78,18 @@ export function AdminUsersPage() {
     }
 
     fetchUsers();
-  }, [user, token, navigate]);
+  }, [user, token, navigate, searchText, filterRole, filterEnabled, sortBy, sortOrder]);
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('/api/admin/users', {
+      const params = new URLSearchParams();
+      if (searchText) params.append('search', searchText);
+      if (filterRole) params.append('role', filterRole);
+      if (filterEnabled) params.append('enabled', filterEnabled);
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
+
+      const response = await axios.get(`/api/admin/users?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(response.data);
@@ -122,9 +140,9 @@ export function AdminUsersPage() {
     }
   };
 
-  const copyInviteCode = (code: string) => {
-    copyToClipboard(code)
-      .then(() => setSnackbar(t('invitation.codeCopied')))
+  const copyUserId = (id: string) => {
+    copyToClipboard(id)
+      .then(() => setSnackbar(t('common.copied')))
       .catch(() => {});
   };
 
@@ -162,6 +180,71 @@ export function AdminUsersPage() {
 
       <Card>
         <CardContent>
+          {/* 搜索和筛选控件 */}
+          <Box sx={{ mb: 3 }}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                placeholder={t('common.search')}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                InputProps={{
+                  startAdornment: <Search size={18} style={{ marginRight: 8 }} />,
+                }}
+                size="small"
+              />
+              <Stack direction="row" spacing={2}>
+                <FormControl sx={{ minWidth: 150 }} size="small">
+                  <InputLabel>{t('common.role')}</InputLabel>
+                  <Select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    label={t('common.role')}
+                  >
+                    <MenuItem value="">{t('common.all')}</MenuItem>
+                    <MenuItem value="user">{t('common.user')}</MenuItem>
+                    <MenuItem value="admin">{t('common.admin')}</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl sx={{ minWidth: 150 }} size="small">
+                  <InputLabel>{t('common.status')}</InputLabel>
+                  <Select
+                    value={filterEnabled}
+                    onChange={(e) => setFilterEnabled(e.target.value)}
+                    label={t('common.status')}
+                  >
+                    <MenuItem value="">{t('common.all')}</MenuItem>
+                    <MenuItem value="true">{t('common.active')}</MenuItem>
+                    <MenuItem value="false">{t('common.disabled')}</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl sx={{ minWidth: 150 }} size="small">
+                  <InputLabel>{t('common.sortBy')}</InputLabel>
+                  <Select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    label={t('common.sortBy')}
+                  >
+                    <MenuItem value="createdAt">{t('common.created')}</MenuItem>
+                    <MenuItem value="username">{t('common.name')}</MenuItem>
+                    <MenuItem value="balance">{t('admin.balance')}</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl sx={{ minWidth: 120 }} size="small">
+                  <InputLabel>{t('common.order')}</InputLabel>
+                  <Select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    label={t('common.order')}
+                  >
+                    <MenuItem value="desc">{t('common.descending')}</MenuItem>
+                    <MenuItem value="asc">{t('common.ascending')}</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Stack>
+          </Box>
+
           {users.length === 0 ? (
             <Typography sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
               {t('admin.noUsersFound')}
@@ -241,16 +324,14 @@ export function AdminUsersPage() {
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          {u.inviteCode && (
-                            <Tooltip title={t('invitation.copyInviteCode')}>
-                              <IconButton
-                                size="small"
-                                onClick={() => copyInviteCode(u.inviteCode!)}
-                              >
-                                <Copy size={18} />
-                              </IconButton>
-                            </Tooltip>
-                          )}
+                          <Tooltip title={t('common.copyUserId')}>
+                            <IconButton
+                              size="small"
+                              onClick={() => copyUserId(u.id)}
+                            >
+                              <Copy size={18} />
+                            </IconButton>
+                          </Tooltip>
                           <IconButton
                             size="small"
                             onClick={() => navigate(`/console/users/${u.id}/requests`)}

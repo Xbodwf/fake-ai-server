@@ -113,7 +113,7 @@ router.get('/api-keys', authMiddleware, (req: AuthRequest, res: Response) => {
     const allKeys = getAllApiKeys();
     const userKeys = allKeys.filter(k => k.userId === req.userId).map(k => ({
       ...k,
-      key: undefined, // 不返回完整 key
+      key: k.key ? `${k.key.substring(0, 10)}...` : undefined, // 显示前10位
     }));
 
     res.json({ keys: userKeys });
@@ -200,7 +200,7 @@ router.post('/api-keys', authMiddleware, async (req: AuthRequest, res: Response)
 router.put('/api-keys/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { name, enabled } = req.body;
+    const { name, enabled, permissions } = req.body;
 
     const allKeys = getAllApiKeys();
     const key = allKeys.find(k => k.id === id && k.userId === req.userId);
@@ -212,9 +212,45 @@ router.put('/api-keys/:id', authMiddleware, async (req: AuthRequest, res: Respon
     const updates: any = {};
     if (name !== undefined) updates.name = name;
     if (enabled !== undefined) updates.enabled = enabled;
+    if (permissions !== undefined) {
+      // 验证 permissions 结构
+      const validatedPermissions: any = {};
+
+      if (permissions.models !== undefined) {
+        validatedPermissions.models = Array.isArray(permissions.models) ? permissions.models : [];
+      }
+      if (permissions.modelsMode !== undefined) {
+        validatedPermissions.modelsMode = ['whitelist', 'blacklist'].includes(permissions.modelsMode)
+          ? permissions.modelsMode
+          : 'whitelist';
+      }
+      if (permissions.actions !== undefined) {
+        validatedPermissions.actions = Array.isArray(permissions.actions) ? permissions.actions : [];
+      }
+      if (permissions.actionsMode !== undefined) {
+        validatedPermissions.actionsMode = ['whitelist', 'blacklist'].includes(permissions.actionsMode)
+          ? permissions.actionsMode
+          : 'whitelist';
+      }
+      if (permissions.endpoints !== undefined) {
+        validatedPermissions.endpoints = Array.isArray(permissions.endpoints) ? permissions.endpoints : [];
+      }
+      if (permissions.rateLimit !== undefined) {
+        validatedPermissions.rateLimit = typeof permissions.rateLimit === 'number' ? permissions.rateLimit : undefined;
+      }
+
+      updates.permissions = { ...key.permissions, ...validatedPermissions };
+    }
 
     const updated = await updateApiKey(id, updates);
-    res.json(updated);
+
+    // 返回时隐藏完整的 key
+    const response = {
+      ...updated,
+      key: updated?.key ? `${updated.key.substring(0, 10)}...` : undefined,
+    };
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update API key' });
   }

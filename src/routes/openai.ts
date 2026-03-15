@@ -3,7 +3,7 @@ import type { ChatCompletionRequest, PendingRequest } from '../types.js';
 import { addPendingRequest, removePendingRequest } from '../requestStore.js';
 import { buildResponse, buildStreamChunk, buildStreamDone, generateRequestId } from '../responseBuilder.js';
 import { broadcastRequest, getConnectedClientsCount } from '../websocket.js';
-import { getAllModels, getModel, validateApiKey, getUserById, updateUser, createUsageRecord, getAllActions, getActionByName, getPublicAndUserActions } from '../storage.js';
+import { getAllModels, getModel, validateApiKey, getUserById, updateUser, createUsageRecord, getAllActions, getActionByName, getPublicAndUserActions, getAllApiKeys } from '../storage.js';
 import { calculateCost, calculateTokens } from '../billing.js';
 import { executeAction } from '../actions/executor.js';
 import { forwardChatRequest, forwardStreamRequest } from '../forwarder.js';
@@ -41,11 +41,25 @@ function extractApiKey(req: Request): string | null {
 router.get('/models', (req: Request, res: Response) => {
   const models = getAllModels();
 
+  // 获取用户ID（支持 JWT 和 API Key）
+  let userId = (req as any).user?.id;
+
+  // 如果没有 JWT，尝试从 API Key 获取
+  if (!userId) {
+    const apiKeyStr = extractApiKey(req);
+    if (apiKeyStr) {
+      const allApiKeys = getAllApiKeys();
+      const apiKeyObj = allApiKeys.find(k => k.key === apiKeyStr && k.enabled);
+      if (apiKeyObj) {
+        userId = apiKeyObj.userId;
+      }
+    }
+  }
+
   // 添加 Actions 作为模型
-  const userId = (req as any).user?.id;
   const actions = getPublicAndUserActions(userId);
   const actionModels = actions.map(action => ({
-    id: `actions/${action.name}`,
+    id: `action/${action.name}`,
     object: 'model',
     created: action.createdAt,
     owned_by: 'user',
@@ -91,8 +105,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   }
 
   // 检查是否为 Action 模型
-  if (body.model.startsWith('actions/')) {
-    const actionName = body.model.replace('actions/', '');
+  if (body.model.startsWith('action/')) {
+    const actionName = body.model.replace('action/', '');
     const action = getActionByName(actionName);
 
     if (!action) {
@@ -101,6 +115,61 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
           message: `Action '${actionName}' not found`,
           type: 'invalid_request_error',
           code: 'action_not_found',
+        }
+      });
+    }
+
+    // 检查权限：只有公开的 action 或创建者才能访问
+    let userId = (req as any).user?.id;
+    let apiKeyId = '';
+
+    // 如果没有 JWT，尝试从 API Key 获取
+    if (!userId) {
+      const apiKeyStr = extractApiKey(req);
+      if (apiKeyStr) {
+        const allApiKeys = getAllApiKeys();
+        const apiKeyObj = allApiKeys.find(k => k.key === apiKeyStr && k.enabled);
+        if (apiKeyObj) {
+          userId = apiKeyObj.userId;
+          apiKeyId = apiKeyObj.id;
+
+          // 检查 API Key 的 action 权限
+          const permissions = apiKeyObj.permissions;
+          if (permissions?.actions && permissions.actions.length > 0) {
+            if (permissions.actionsMode === 'blacklist') {
+              // 黑名单模式：排除指定的 actions
+              if (permissions.actions.includes(action.id)) {
+                return res.status(403).json({
+                  error: {
+                    message: `This API key is not allowed to access this action`,
+                    type: 'permission_error',
+                    code: 'action_permission_denied',
+                  }
+                });
+              }
+            } else {
+              // 白名单模式（默认）：只包含指定的 actions
+              if (!permissions.actions.includes(action.id)) {
+                return res.status(403).json({
+                  error: {
+                    message: `This API key is not allowed to access this action`,
+                    type: 'permission_error',
+                    code: 'action_permission_denied',
+                  }
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!action.isPublic && action.createdBy !== userId) {
+      return res.status(403).json({
+        error: {
+          message: `You don't have permission to access this action`,
+          type: 'permission_error',
+          code: 'action_permission_denied',
         }
       });
     }
@@ -116,8 +185,8 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         try {
           input = JSON.parse(lastMessage.content);
         } catch {
-          // 如果不是 JSON，作为单个参数传递
-          input = { text: lastMessage.content };
+          // 如果不是 JSON，作为 prompt 参数传递
+          input = { prompt: lastMessage.content };
         }
       }
     } catch (error) {
@@ -131,7 +200,12 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
     try {
       // 执行 Action
-      const result = await executeAction(action, input);
+      console.log('[ACTION] Executing action:', action.name, 'with userId:', userId, 'apiKeyId:', apiKeyId);
+      const executionResult = await executeAction(action, input, 30000, userId, apiKeyId);
+      console.log('[ACTION] Execution completed successfully');
+
+      // ACTION 内部调用的模型会通过 /v1/chat 端点自动计费
+      // 这里不需要额外的计费逻辑
 
       // 返回结果
       return res.json({
@@ -143,17 +217,18 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
           index: 0,
           message: {
             role: 'assistant',
-            content: JSON.stringify(result),
+            content: JSON.stringify(executionResult.result),
           },
           finish_reason: 'stop',
         }],
         usage: {
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0,
+          prompt_tokens: executionResult.usage?.promptTokens || 0,
+          completion_tokens: executionResult.usage?.completionTokens || 0,
+          total_tokens: (executionResult.usage?.promptTokens || 0) + (executionResult.usage?.completionTokens || 0),
         },
       });
     } catch (error) {
+      console.error('[ACTION] Execution failed:', error);
       return res.status(400).json({
         error: {
           message: error instanceof Error ? error.message : 'Action execution failed',
@@ -174,11 +249,42 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     });
   }
 
-  // 计费检查
+  // 计费检查和权限检查
   const apiKeyStr = extractApiKey(req);
   let apiKeyObj: any = null;
   if (apiKeyStr) {
     apiKeyObj = await validateApiKey(apiKeyStr);
+  }
+
+  // 检查 API Key 的模型权限
+  if (apiKeyObj) {
+    const permissions = apiKeyObj.permissions;
+    if (permissions?.models && permissions.models.length > 0) {
+      if (permissions.modelsMode === 'blacklist') {
+        // 黑名单模式：排除指定的模型
+        if (permissions.models.includes(body.model)) {
+          return res.status(403).json({
+            error: {
+              message: `This API key is not allowed to access this model`,
+              type: 'permission_error',
+              code: 'model_permission_denied',
+            }
+          });
+        }
+      } else {
+        // 白名单模式（默认）：只包含指定的模型
+        if (!permissions.models.includes(body.model)) {
+          return res.status(403).json({
+            error: {
+              message: `This API key is not allowed to access this model`,
+              type: 'permission_error',
+              code: 'model_permission_denied',
+            }
+          });
+        }
+      }
+    }
+    // 如果 permissions.models 为空或不存在，允许访问所有模型
   }
 
   if (apiKeyObj && apiKeyObj.userId) {
@@ -287,8 +393,23 @@ async function handleChatRequest(
     user: body.user,
   };
 
-  const userId = apiKeyObj?.userId;
-  const apiKeyId = apiKeyObj?.id;
+  // 检查是否来自 ACTION 内部调用（通过特殊 header）
+  let userId = apiKeyObj?.userId;
+  let apiKeyId = apiKeyObj?.id;
+
+  // 如果没有 apiKeyObj，检查是否有内部调用的 header
+  if (!userId) {
+    // Express 会将 header 转换为小写
+    const internalUserId = (res.req as any).headers['x-internal-user-id'];
+    const internalApiKeyId = (res.req as any).headers['x-internal-api-key-id'];
+    console.log('[handleChatRequest] Checking internal headers:', { internalUserId, internalApiKeyId, allHeaders: (res.req as any).headers });
+    if (internalUserId) {
+      userId = internalUserId;
+      apiKeyId = internalApiKeyId || 'internal';
+      console.log('[handleChatRequest] Using internal headers - userId:', userId, 'apiKeyId:', apiKeyId);
+    }
+  }
+
   const model = getModel(body.model);
 
   // 检查是否配置了转发
@@ -560,5 +681,221 @@ async function handleChatRequest(
     }
   }
 }
+
+/**
+ * GET /v1/actions/models - 获取此 API Key 可访问的 Actions 列表
+ */
+router.get('/actions/models', (req: Request, res: Response) => {
+  // 获取 API Key
+  const apiKeyStr = extractApiKey(req);
+  if (!apiKeyStr) {
+    return res.status(401).json({
+      error: {
+        message: 'API key is required',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  const allApiKeys = getAllApiKeys();
+  const apiKeyObj = allApiKeys.find(k => k.key === apiKeyStr && k.enabled);
+  if (!apiKeyObj) {
+    return res.status(401).json({
+      error: {
+        message: 'Invalid API key',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  // 获取用户可访问的 actions
+  const userId = apiKeyObj.userId;
+  const actions = getPublicAndUserActions(userId);
+
+  // 检查 API Key 的权限
+  const permissions = apiKeyObj.permissions;
+  let filteredActions = actions;
+
+  if (permissions?.actions && permissions.actions.length > 0) {
+    if (permissions.actionsMode === 'blacklist') {
+      // 黑名单模式：排除指定的 actions
+      filteredActions = actions.filter(a => !permissions.actions!.includes(a.id));
+    } else {
+      // 白名单模式（默认）：只包含指定的 actions
+      filteredActions = actions.filter(a => permissions.actions!.includes(a.id));
+    }
+  }
+
+  const actionModels = filteredActions.map(action => ({
+    id: `action/${action.name}`,
+    object: 'model',
+    created: action.createdAt,
+    owned_by: 'user',
+    description: action.description || `Action: ${action.name}`,
+    context_length: 4096,
+    max_output_tokens: 2048,
+    type: 'action',
+    actionId: action.id,
+  }));
+
+  res.json({
+    object: 'list',
+    data: actionModels,
+  });
+});
+
+/**
+ * POST /v1/actions/completions - 调用 Action 模型
+ */
+router.post('/actions/completions', async (req: Request, res: Response) => {
+  const body = req.body as ChatCompletionRequest;
+
+  if (!body.model || !body.messages || !Array.isArray(body.messages)) {
+    return res.status(400).json({
+      error: {
+        message: 'Invalid request: model and messages are required',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  // 获取 API Key
+  const apiKeyStr = extractApiKey(req);
+  if (!apiKeyStr) {
+    return res.status(401).json({
+      error: {
+        message: 'API key is required',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  const allApiKeys = getAllApiKeys();
+  const apiKeyObj = allApiKeys.find(k => k.key === apiKeyStr && k.enabled);
+  if (!apiKeyObj) {
+    return res.status(401).json({
+      error: {
+        message: 'Invalid API key',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  // 获取 action 名称（支持 action/name 或 name 格式）
+  let actionName = body.model;
+  if (actionName.startsWith('action/')) {
+    actionName = actionName.replace('action/', '');
+  }
+
+  const action = getActionByName(actionName);
+  if (!action) {
+    return res.status(404).json({
+      error: {
+        message: `Action '${actionName}' not found`,
+        type: 'invalid_request_error',
+        code: 'action_not_found',
+      }
+    });
+  }
+
+  // 检查权限：只有公开的 action 或创建者才能访问
+  const userId = apiKeyObj.userId;
+  const apiKeyId = apiKeyObj.id;
+  if (!action.isPublic && action.createdBy !== userId) {
+    return res.status(403).json({
+      error: {
+        message: `You don't have permission to access this action`,
+        type: 'permission_error',
+        code: 'action_permission_denied',
+      }
+    });
+  }
+
+  // 检查 API Key 的 action 权限
+  const permissions = apiKeyObj.permissions;
+  if (permissions?.actions && permissions.actions.length > 0) {
+    if (permissions.actionsMode === 'blacklist') {
+      // 黑名单模式：排除指定的 actions
+      if (permissions.actions.includes(action.id)) {
+        return res.status(403).json({
+          error: {
+            message: `This API key is not allowed to access this action`,
+            type: 'permission_error',
+            code: 'action_permission_denied',
+          }
+        });
+      }
+    } else {
+      // 白名单模式（默认）：只包含指定的 actions
+      if (!permissions.actions.includes(action.id)) {
+        return res.status(403).json({
+          error: {
+            message: `This API key is not allowed to access this action`,
+            type: 'permission_error',
+            code: 'action_permission_denied',
+          }
+        });
+      }
+    }
+  }
+  // 如果 permissions.actions 为空或不存在，允许访问所有 actions
+
+  // 从 messages 中提取输入参数
+  const lastMessage = body.messages[body.messages.length - 1];
+  let input: Record<string, any> = {};
+
+  try {
+    if (typeof lastMessage.content === 'string') {
+      try {
+        input = JSON.parse(lastMessage.content);
+      } catch {
+        input = { prompt: lastMessage.content };
+      }
+    }
+  } catch (error) {
+    return res.status(400).json({
+      error: {
+        message: 'Invalid input format for Action',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  try {
+    // 执行 Action
+    const executionResult = await executeAction(action, input, 30000, userId, apiKeyId);
+
+    // ACTION 内部调用的模型会通过 /v1/chat 端点自动计费
+    // 这里不需要额外的计费逻辑
+
+    // 返回结果
+    return res.json({
+      id: generateRequestId(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: body.model,
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: JSON.stringify(executionResult.result),
+        },
+        finish_reason: 'stop',
+      }],
+      usage: {
+        prompt_tokens: executionResult.usage?.promptTokens || 0,
+        completion_tokens: executionResult.usage?.completionTokens || 0,
+        total_tokens: (executionResult.usage?.promptTokens || 0) + (executionResult.usage?.completionTokens || 0),
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      error: {
+        message: error instanceof Error ? error.message : 'Action execution failed',
+        type: 'action_execution_error',
+      }
+    });
+  }
+});
 
 export default router;

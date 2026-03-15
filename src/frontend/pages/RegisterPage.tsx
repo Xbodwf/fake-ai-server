@@ -15,11 +15,13 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +34,13 @@ export function RegisterPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // 检查用户是否已登录，如果已登录则重定向
+  useEffect(() => {
+    if (user) {
+      navigate(user.role === 'admin' ? '/console/dashboard' : '/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   // 从 URL 参数获取邀请码
   useEffect(() => {

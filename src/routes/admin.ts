@@ -25,17 +25,58 @@ const router: Router = Router();
  */
 router.get('/users', authMiddleware, adminMiddleware, (req: AuthRequest, res: Response) => {
   try {
-    const users = getAllUsers();
-    
+    let users = getAllUsers();
+
+    // 搜索和筛选
+    const { search, role, enabled, sortBy, sortOrder } = req.query;
+
+    // 搜索：用户名、邮箱、ID
+    if (search && typeof search === 'string') {
+      const searchLower = search.toLowerCase();
+      users = users.filter(u =>
+        u.username.toLowerCase().includes(searchLower) ||
+        u.email.toLowerCase().includes(searchLower) ||
+        u.id.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // 按角色筛选
+    if (role && typeof role === 'string' && (role === 'user' || role === 'admin')) {
+      users = users.filter(u => u.role === role);
+    }
+
+    // 按启用状态筛选
+    if (enabled !== undefined) {
+      const enabledBool = enabled === 'true';
+      users = users.filter(u => u.enabled === enabledBool);
+    }
+
+    // 排序
+    const sortByField = (sortBy as string) || 'createdAt';
+    const sortOrderVal = (sortOrder as string) === 'asc' ? 1 : -1;
+
+    users.sort((a, b) => {
+      let aVal: any = a[sortByField as keyof typeof a];
+      let bVal: any = b[sortByField as keyof typeof b];
+
+      if (aVal === undefined) aVal = '';
+      if (bVal === undefined) bVal = '';
+
+      if (typeof aVal === 'string') {
+        return aVal.localeCompare(bVal) * sortOrderVal;
+      }
+      return (aVal - bVal) * sortOrderVal;
+    });
+
     // 创建用户ID到用户名的映射
     const userIdToName = new Map<string, string>();
-    users.forEach(u => userIdToName.set(u.id, u.username));
-    
+    getAllUsers().forEach(u => userIdToName.set(u.id, u.username));
+
     res.json(
       users.map(u => {
         // 计算该用户邀请的人数
         const invitationRecords = getInvitationRecordsByInviter(u.id);
-        
+
         return {
           id: u.id,
           username: u.username,

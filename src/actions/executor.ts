@@ -1,7 +1,9 @@
 import { VM } from 'vm2';
-import { compileTypeScript, preprocessActionCode, extractExecuteFunction, extractMetadata } from './compiler.js';
+import { compileTypeScript, preprocessActionCode, extractMetadata } from './compiler.js';
 import type { Action, Workflow, WorkflowRun, StepRun } from '../types.js';
 import { ExecutionContext } from './context.js';
+import { internalChatCompletion } from './chatCompletion.js';
+import { createSandboxInterfaces } from './sandboxInterfaces.js';
 
 /**
  * 验证输入参数是否符合 Action 定义
@@ -46,13 +48,16 @@ function validateOutputs(output: any, returnType?: string): void {
  * @param action Action 定义
  * @param input 输入参数
  * @param timeout 超时时间（毫秒）
- * @returns 执行结果
+ * @param userId 用户 ID（用于计费）
+ * @returns 执行结果和使用统计
  */
 export async function executeAction(
   action: Action,
   input: Record<string, any>,
-  timeout: number = 30000
-): Promise<Record<string, any>> {
+  timeout: number = 30000,
+  userId?: string,
+  apiKeyId?: string
+): Promise<{ result: Record<string, any>; usage?: { promptTokens: number; completionTokens: number } }> {
   try {
     // 1. 预处理代码
     const processedCode = preprocessActionCode(action.code);
@@ -64,37 +69,96 @@ export async function executeAction(
     validateInputs(input, action.parameters);
 
     // 4. 在 vm2 中执行代码
+    // 创建沙箱接口
+    // 创建使用统计跟踪器
+    const usageTracker = {
+      promptTokens: 0,
+      completionTokens: 0,
+      userId,
+      apiKeyId,
+    };
+
+    console.log('[executeAction] Creating usageTracker:', { userId, apiKeyId });
+
+    const sandboxInterfaces = createSandboxInterfaces(usageTracker);
+
     const vm = new VM({
       timeout,
-      sandbox: {
-        // 提供必要的全局对象
-        console,
-        fetch,
-        JSON,
-        Math,
-        Date,
-        Array,
-        Object,
-        String,
-        Number,
-        Boolean,
-        Promise,
-        setTimeout,
-        setInterval,
-        // 不提供 fs, require, process 等危险操作
-      },
+      sandbox: sandboxInterfaces,
     });
 
-    // 5. 执行代码并获取 execute 函数
-    const executeFunc = extractExecuteFunction(compiledCode);
+    // 5. 在 VM 中执行代码并获取 execute 函数
+    const module: { exports: any } = { exports: {} };
 
-    // 6. 调用 execute 函数
-    const result = await executeFunc(input);
+    // 获取服务器基础URL
+    const port = process.env.PORT || 7143;
+    const serverHost = process.env.SERVER_HOST || 'localhost';
+    const baseUrl = `http://${serverHost}:${port}`;
+
+    // 在VM代码中注入callChatCompletion函数和usageTracker
+    const vmCode = `
+      (function(module, exports) {
+        const __usageTracker = ${JSON.stringify(usageTracker)};
+        const __baseUrl = ${JSON.stringify(baseUrl)};
+
+        // 在沙箱内部定义callChatCompletion，这样它可以访问__usageTracker
+        async function callChatCompletion(params) {
+          const url = __baseUrl + '/v1/chat/completions';
+
+          const headers = {
+            'Content-Type': 'application/json',
+          };
+
+          if (__usageTracker?.userId) {
+            headers['x-internal-user-id'] = __usageTracker.userId;
+          }
+          if (__usageTracker?.apiKeyId) {
+            headers['x-internal-api-key-id'] = __usageTracker.apiKeyId;
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(params),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Chat completion failed');
+          }
+
+          const data = await response.json();
+          if (data.choices && data.choices[0] && data.choices[0].message) {
+            return data.choices[0].message.content;
+          }
+          throw new Error('Invalid response format');
+        }
+
+        ${compiledCode}
+      })
+    `;
+
+    const result = vm.run(vmCode);
+    result(module, module.exports);
+
+    if (typeof module.exports.execute !== 'function') {
+      throw new Error('Action code must export an "execute" function');
+    }
+
+    // 6. 调用 execute 函数，确保 input 是对象
+    const normalizedInput = typeof input === 'object' ? input : { text: input };
+    const actionResult = await module.exports.execute(normalizedInput);
 
     // 7. 验证输出
-    validateOutputs(result, action.returnType);
+    validateOutputs(actionResult, action.returnType);
 
-    return result;
+    return {
+      result: actionResult,
+      usage: {
+        promptTokens: usageTracker.promptTokens,
+        completionTokens: usageTracker.completionTokens,
+      },
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Action execution failed: ${errorMessage}`);

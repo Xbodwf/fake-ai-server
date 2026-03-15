@@ -1,7 +1,4 @@
-import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { randomBytes } from 'crypto';
+import * as ts from 'typescript';
 
 /**
  * 编译 TypeScript 代码为 JavaScript
@@ -9,33 +6,18 @@ import { randomBytes } from 'crypto';
  * @returns 编译后的 JavaScript 代码
  */
 export function compileTypeScript(code: string): string {
-  const tempDir = join(process.cwd(), '.temp');
-  const tempFile = join(tempDir, `action_${randomBytes(8).toString('hex')}.ts`);
-  const jsFile = tempFile.replace('.ts', '.js');
-
   try {
-    // 写入临时 TypeScript 文件
-    writeFileSync(tempFile, code);
-
-    // 使用 tsc 编译
-    execSync(`npx tsc ${tempFile} --outDir ${tempDir} --module commonjs --target es2020 --lib es2020`, {
-      stdio: 'pipe',
+    const result = ts.transpileModule(code, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        lib: ['ES2020'],
+      },
     });
 
-    // 读取编译后的 JavaScript
-    const compiledCode = readFileSync(jsFile, 'utf-8');
-
-    return compiledCode;
+    return result.outputText;
   } catch (error) {
     throw new Error(`TypeScript compilation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  } finally {
-    // 清理临时文件
-    try {
-      unlinkSync(tempFile);
-      unlinkSync(jsFile);
-    } catch (e) {
-      // 忽略清理错误
-    }
   }
 }
 

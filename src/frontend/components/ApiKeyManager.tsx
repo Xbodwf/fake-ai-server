@@ -26,6 +26,7 @@ import { Key, Plus, Trash2, Copy, Calendar, Clock, Eye, Edit2 } from 'lucide-rea
 import { useServer } from '../contexts/ServerContext';
 import { ApiKeyEditDialog } from './ApiKeyEditDialog';
 import { copyToClipboard as copyText } from '../utils/clipboard';
+import { formatDateTime } from '../utils/dateUtils';
 import type { ApiKey } from '../types';
 import axios from 'axios';
 
@@ -123,8 +124,8 @@ export default function ApiKeyManager() {
       .catch(() => setSnackbar('复制失败'));
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN');
+  const formatDateDisplay = (timestamp: number) => {
+    return formatDateTime(timestamp, 'zh-CN');
   };
 
   return (
@@ -184,12 +185,12 @@ export default function ApiKeyManager() {
                         <Box sx={{ display: 'flex', gap: 2, color: 'text.secondary', fontSize: '0.75rem' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Calendar size={12} />
-                            创建: {formatDate(key.createdAt)}
+                            创建: {formatDateDisplay(key.createdAt)}
                           </Box>
                           {key.lastUsedAt && (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <Clock size={12} />
-                              最后使用: {formatDate(key.lastUsedAt)}
+                              最后使用: {formatDateDisplay(key.lastUsedAt)}
                             </Box>
                           )}
                           {key.viewCount !== undefined && (

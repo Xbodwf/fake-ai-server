@@ -10,6 +10,8 @@ import {
   deleteAction,
   incrementActionUsage,
 } from '../storage.js';
+import { getSandboxInterfacesDoc } from '../actions/sandboxInterfaces.js';
+import { getActionMetadata, validateActionCode } from '../actions/executor.js';
 
 const router: Router = Router();
 
@@ -130,6 +132,53 @@ router.delete('/actions/:id', authMiddleware, async (req: AuthRequest, res: Resp
     res.json({ message: 'Action deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete action' });
+  }
+});
+
+/**
+ * 获取 Action 沙箱接口文档
+ */
+router.get('/actions/docs/sandbox', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    const doc = getSandboxInterfacesDoc();
+    res.json({ documentation: doc });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get sandbox documentation' });
+  }
+});
+
+/**
+ * 验证 Action 代码并提取 metadata
+ */
+router.post('/actions/validate', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Code is required' });
+    }
+
+    // 验证代码
+    const validation = validateActionCode(code);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Code validation failed',
+        details: validation.error,
+      });
+    }
+
+    // 提取 metadata
+    const metadata = getActionMetadata({ code } as any);
+
+    res.json({
+      valid: true,
+      metadata: metadata || {},
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: 'Failed to validate action code',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 });
 

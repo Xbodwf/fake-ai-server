@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import api from '../utils/api';
+import { formatDate } from '../utils/dateUtils';
 
 interface Notification {
   id: string;
@@ -69,8 +70,8 @@ export function NotificationCenter({ maxItems }: NotificationCenterProps) {
     });
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString(undefined, {
+  const formatDateDisplay = (timestamp: number) => {
+    return formatDate(timestamp, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -167,7 +168,7 @@ export function NotificationCenter({ maxItems }: NotificationCenterProps) {
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {formatDate(notification.createdAt)}
+                      {formatDateDisplay(notification.createdAt)}
                     </Typography>
                     <IconButton
                       size="small"

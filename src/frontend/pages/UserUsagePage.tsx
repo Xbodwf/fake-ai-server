@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import api from '../utils/api';
+import { formatDateTime, formatDate, getDatePart } from '../utils/dateUtils';
 
 interface UsageRecord {
   id: string;
@@ -104,7 +105,7 @@ export function UserUsagePage() {
   // 按日期分组统计
   const dailyUsageMap = new Map<string, DailyUsage>();
   filteredRecords.forEach(record => {
-    const date = new Date(record.timestamp).toISOString().split('T')[0];
+    const date = getDatePart(record.timestamp);
     const existing = dailyUsageMap.get(date) || { date, requests: 0, tokens: 0, cost: 0 };
     existing.requests += 1;
     existing.tokens += record.totalTokens;
@@ -132,13 +133,13 @@ export function UserUsagePage() {
     byModel[record.model].cost += record.cost;
   });
 
-  const formatDate = (dateStr: string) => {
+  const formatDateDisplay = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  const formatDateTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
+  const formatDateTimeDisplay = (timestamp: number) => {
+    return formatDateTime(timestamp);
   };
 
   if (loading) {
@@ -269,7 +270,7 @@ export function UserUsagePage() {
                 <TableBody>
                   {dailyUsage.map((day) => (
                     <TableRow key={day.date}>
-                      <TableCell>{formatDate(day.date)}</TableCell>
+                      <TableCell>{formatDateDisplay(day.date)}</TableCell>
                       <TableCell align="right">{day.requests.toLocaleString()}</TableCell>
                       <TableCell align="right">{day.tokens.toLocaleString()}</TableCell>
                       <TableCell align="right">${day.cost.toFixed(4)}</TableCell>
@@ -343,7 +344,7 @@ export function UserUsagePage() {
                   {filteredRecords.slice(0, 100).map((record) => (
                     <TableRow key={record.id}>
                       <TableCell sx={{ fontSize: '0.85rem' }}>
-                        {formatDateTime(record.timestamp)}
+                        {formatDateTimeDisplay(record.timestamp)}
                       </TableCell>
                       <TableCell>{record.model}</TableCell>
                       <TableCell sx={{ textTransform: 'capitalize' }}>{record.endpoint}</TableCell>

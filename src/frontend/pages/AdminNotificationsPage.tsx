@@ -34,6 +34,7 @@ import {
   PushPin as PinIcon,
 } from '@mui/icons-material';
 import api from '../utils/api';
+import { formatDateTime } from '../utils/dateUtils';
 
 interface Notification {
   id: string;
@@ -163,8 +164,8 @@ export function AdminNotificationsPage() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
+  const formatDateDisplay = (timestamp: number) => {
+    return formatDateTime(timestamp);
   };
 
   if (loading) {
@@ -261,7 +262,7 @@ export function AdminNotificationsPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{formatDate(notification.createdAt)}</Typography>
+                        <Typography variant="body2">{formatDateDisplay(notification.createdAt)}</Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end">

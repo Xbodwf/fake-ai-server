@@ -27,6 +27,8 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { AdminNotificationsPage } from './pages/AdminNotificationsPage';
 import { ModelMarketplace } from './pages/ModelMarketplace';
 import ModelManager from './components/ModelManager';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { DocsPage } from './pages/DocsPage';
 
 // 模型广场包装器 - 从 ServerContext 获取 models
 function ModelMarketplaceWrapper() {
@@ -162,6 +164,7 @@ function AppContent() {
             {/* 认证路由 */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/docs" element={<DocsPage />} />
 
             {/* 用户路由 */}
             <Route
@@ -330,6 +333,9 @@ function AppContent() {
 
             {/* 默认重定向 */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            {/* 404 捕获所有未定义的路由 */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </ServerProvider>
       </AuthProvider>

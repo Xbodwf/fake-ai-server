@@ -35,6 +35,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { copyToClipboard } from '../utils/clipboard';
+import { formatDateTime } from '../utils/dateUtils';
 
 interface InvitationInfo {
   inviteCode: string;
@@ -119,8 +120,8 @@ export function UserInvitationPage() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
+  const formatDateDisplay = (timestamp: number) => {
+    return formatDateTime(timestamp);
   };
 
   if (loading) {
@@ -290,7 +291,7 @@ export function UserInvitationPage() {
                     <TableRow key={invitedUser.id}>
                       <TableCell>{invitedUser.inviteeUsername}</TableCell>
                       <TableCell>{invitedUser.inviteeEmail}</TableCell>
-                      <TableCell>{formatDate(invitedUser.createdAt)}</TableCell>
+                      <TableCell>{formatDateDisplay(invitedUser.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
