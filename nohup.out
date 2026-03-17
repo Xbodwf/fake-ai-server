@@ -1,0 +1,29 @@
+
+> phantom-mock@1.0.0 start /home/orangepi/apps/fake-ai-server
+> node dist/index.js
+
+========================================
+Fake OpenAI Server 已启动
+端口: 7143
+前端地址: http://localhost:7143
+========================================
+========================================
+支持的 API 端点:
+  OpenAI:
+    POST /v1/chat/completions
+    POST /v1/responses
+    GET  /v1/models
+    POST /v1/images/generations
+    POST /v1/images/edits
+    POST /v1/embeddings
+    POST /v1/moderations
+  Anthropic:
+    POST /v1/messages
+  Google Gemini:
+    POST /v1beta/models/{model}:generateContent
+    POST /v1beta/models/{model}:streamGenerateContent
+    GET  /v1beta/models
+  视频生成:
+    POST /v1/videos/generations
+========================================
+模型数量: 4

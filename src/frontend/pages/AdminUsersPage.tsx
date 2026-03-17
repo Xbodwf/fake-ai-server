@@ -34,6 +34,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { copyToClipboard } from '../utils/clipboard';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
 interface AdminUser {
   id: string;
@@ -302,7 +303,7 @@ export function AdminUsersPage() {
                           </Typography>
                         )}
                       </TableCell>
-                      <TableCell align="right">${u.balance.toFixed(2)}</TableCell>
+                      <TableCell align="right">{formatCurrency(u.balance, 2)}</TableCell>
                       <TableCell align="right">{u.totalUsage}</TableCell>
                       <TableCell>
                         <Chip

@@ -23,7 +23,8 @@
     "role": "角色",
     "user": "用户",
     "admin": "管理员",
-    "never": "从未"
+    "never": "从未",
+    "currency": "🔮"
   },
   "auth": {
     "login": "登录",
@@ -159,9 +160,9 @@
       "pricingType": "计费类型",
       "pricingByToken": "按 Token 计费",
       "pricingByRequest": "按请求计费",
-      "inputPrice": "输入价格 ($/1K tokens)",
-      "outputPrice": "输出价格 ($/1K tokens)",
-      "pricePerRequest": "每次请求价格 ($)",
+      "inputPrice": "输入价格 (🔮/1K tokens)",
+      "outputPrice": "输出价格 (🔮/1K tokens)",
+      "pricePerRequest": "每次请求价格 (🔮)",
       "pricePerRequestHelper": "每次 API 调用的固定费用",
       "apiConfig": "API 转发配置",
       "apiType": "接口类型",
@@ -389,9 +390,9 @@
     "email": "邮箱",
     "invitedAt": "邀请时间",
     "quantity": "购买数量",
-    "totalCost": "总计：${{cost}}",
-    "purchaseInfo": "购买额外邀请次数，每次 $2",
-    "purchaseSuccess": "成功购买 {{count}} 次邀请次数，花费 ${{cost}}",
+    "totalCost": "总计：🔮{{cost}}",
+    "purchaseInfo": "购买额外邀请次数，每次 🔮2",
+    "purchaseSuccess": "成功购买 {{count}} 次邀请次数，花费 🔮{{cost}}",
     "inviter": "邀请人",
     "invitedBy": "邀请人",
     "inviteCount": "邀请人数"

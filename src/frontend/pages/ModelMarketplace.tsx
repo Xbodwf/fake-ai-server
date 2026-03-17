@@ -24,6 +24,7 @@ import { ModelCard } from '../components/ModelCard';
 import { copyToClipboard } from '../utils/clipboard';
 import type { Model } from '../../types.js';
 import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../utils/currency';
 
 interface ModelMarketplaceProps {
   models: Model[];
@@ -302,12 +303,12 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                       <Stack spacing={0.5}>
                         {selectedModel.pricing.input && (
                           <Typography variant="body2">
-                            {t('models.details.input')}: ${selectedModel.pricing.input.toFixed(4)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
+                            {t('models.details.input')}: {formatCurrency(selectedModel.pricing.input)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
                           </Typography>
                         )}
                         {selectedModel.pricing.output && (
                           <Typography variant="body2">
-                            {t('models.details.output')}: ${selectedModel.pricing.output.toFixed(4)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
+                            {t('models.details.output')}: {formatCurrency(selectedModel.pricing.output)}/{selectedModel.pricing.unit || 'K'} {t('models.details.tokens')}
                           </Typography>
                         )}
                       </Stack>

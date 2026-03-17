@@ -11,6 +11,7 @@ import {
 import { Zap, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Model } from '../../types.js';
+import { formatCurrency } from '../utils/currency';
 
 interface ModelCardProps {
   model: Model;
@@ -24,7 +25,7 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
   const formatPrice = (price?: number, unit?: string) => {
     if (!price) return t('models.free');
     const unitLabel = unit === 'M' ? '/M tokens' : '/K tokens';
-    return `$${price.toFixed(4)}${unitLabel}`;
+    return `${formatCurrency(price)}${unitLabel}`;
   };
 
   return (

@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
 import type { Invoice } from '../../types.js';
+import { formatCurrency } from '../utils/currency';
 
 interface BillingInfo {
   balance: number;
@@ -98,7 +99,7 @@ export function UserBillingPage() {
               {t('billing.currentBalance')}
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main' }}>
-              ${billingInfo?.balance.toFixed(2) || '0.00'}
+              {formatCurrency(billingInfo?.balance || 0, 2)}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
               {t('billing.availableForUsage')}
@@ -131,7 +132,7 @@ export function UserBillingPage() {
                     <TableRow key={invoice.id}>
                       <TableCell sx={{ fontWeight: 500 }}>{invoice.period}</TableCell>
                       <TableCell align="right">{invoice.totalUsage}</TableCell>
-                      <TableCell align="right">${invoice.totalCost.toFixed(4)}</TableCell>
+                      <TableCell align="right">{formatCurrency(invoice.totalCost)}</TableCell>
                       <TableCell>
                         <Chip
                           label={invoice.status}

@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
 interface AdminStats {
   totalUsers: number;
@@ -157,7 +158,7 @@ export function AdminDashboard() {
               {t('admin.totalBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${usageStats?.totalBalance.toFixed(2) || '0.00'}
+              {formatCurrency(usageStats?.totalBalance || 0, 2)}
             </Typography>
           </CardContent>
         </Card>
@@ -168,7 +169,7 @@ export function AdminDashboard() {
               {t('admin.averageBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${usageStats?.averageBalance.toFixed(2) || '0.00'}
+              {formatCurrency(usageStats?.averageBalance || 0, 2)}
             </Typography>
           </CardContent>
         </Card>
@@ -190,7 +191,7 @@ export function AdminDashboard() {
               {t('admin.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${usageStats?.totalCost.toFixed(4) || '0.0000'}
+              {formatCurrency(usageStats?.totalCost || 0)}
             </Typography>
           </CardContent>
         </Card>

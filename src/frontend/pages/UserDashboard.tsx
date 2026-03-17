@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { NotificationCenter } from '../components/NotificationCenter';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
 interface DashboardStats {
   balance: number;
@@ -90,7 +91,7 @@ export function UserDashboard() {
               {t('dashboard.accountBalance')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${stats?.balance.toFixed(2) || '0.00'}
+              {formatCurrency(stats?.balance || 0, 2)}
             </Typography>
           </CardContent>
         </Card>
@@ -123,7 +124,7 @@ export function UserDashboard() {
               {t('dashboard.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${stats?.totalCost.toFixed(2) || '0.00'}
+              {formatCurrency(stats?.totalCost || 0, 2)}
             </Typography>
           </CardContent>
         </Card>

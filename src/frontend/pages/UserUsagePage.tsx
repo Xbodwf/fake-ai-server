@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import api from '../utils/api';
 import { formatDateTime, getDatePart } from '../utils/dateUtils';
+import { formatCurrency } from '../utils/currency';
 
 interface UsageRecord {
   id: string;
@@ -244,7 +245,7 @@ export function UserUsagePage() {
               {t('usage.totalCost')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              ${summary.totalCost.toFixed(4)}
+              {formatCurrency(summary.totalCost)}
             </Typography>
           </CardContent>
         </Card>
@@ -273,7 +274,7 @@ export function UserUsagePage() {
                       <TableCell>{formatDateDisplay(day.date)}</TableCell>
                       <TableCell align="right">{day.requests.toLocaleString()}</TableCell>
                       <TableCell align="right">{day.tokens.toLocaleString()}</TableCell>
-                      <TableCell align="right">${day.cost.toFixed(4)}</TableCell>
+                      <TableCell align="right">{formatCurrency(day.cost)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -310,7 +311,7 @@ export function UserUsagePage() {
                       <TableCell>{model}</TableCell>
                       <TableCell align="right">{data.requests.toLocaleString()}</TableCell>
                       <TableCell align="right">{data.tokens.toLocaleString()}</TableCell>
-                      <TableCell align="right">${data.cost.toFixed(4)}</TableCell>
+                      <TableCell align="right">{formatCurrency(data.cost)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -349,7 +350,7 @@ export function UserUsagePage() {
                       <TableCell>{record.model}</TableCell>
                       <TableCell sx={{ textTransform: 'capitalize' }}>{record.endpoint}</TableCell>
                       <TableCell align="right">{record.totalTokens.toLocaleString()}</TableCell>
-                      <TableCell align="right">${record.cost.toFixed(4)}</TableCell>
+                      <TableCell align="right">{formatCurrency(record.cost)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
