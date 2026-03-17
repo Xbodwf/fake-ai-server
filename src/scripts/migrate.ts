@@ -1,4 +1,4 @@
-import { connectDB, disconnectDB, initializeIndexes } from './db/index';
+import { connectDB, disconnectDB, initializeIndexes } from '../db';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ObjectId } from 'mongodb';

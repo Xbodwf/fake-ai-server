@@ -44,7 +44,7 @@ export async function getActionsByUser(userId: string): Promise<Action[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Action[];
+  })) as unknown as Action[];
 }
 
 export async function getPublicActions(): Promise<Action[]> {
@@ -55,7 +55,7 @@ export async function getPublicActions(): Promise<Action[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Action[];
+  })) as unknown as Action[];
 }
 
 export async function getAllActions(): Promise<Action[]> {
@@ -66,7 +66,7 @@ export async function getAllActions(): Promise<Action[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Action[];
+  })) as unknown as Action[];
 }
 
 export async function updateAction(id: string, updates: Partial<Action>): Promise<Action | null> {
@@ -84,11 +84,12 @@ export async function updateAction(id: string, updates: Partial<Action>): Promis
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as Action;
 }
 
@@ -126,5 +127,5 @@ export async function searchActions(query: {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Action[];
+  })) as unknown as Action[];
 }

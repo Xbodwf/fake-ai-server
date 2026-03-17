@@ -63,7 +63,7 @@ export async function updateModel(id: string, updates: Partial<Model>): Promise<
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
   return toEntity<Model>(result.value);
 }

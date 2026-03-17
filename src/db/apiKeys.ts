@@ -56,7 +56,7 @@ export async function getApiKeysByUserId(userId: string): Promise<ApiKey[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as ApiKey[];
+  })) as unknown as ApiKey[];
 }
 
 export async function getAllApiKeys(): Promise<ApiKey[]> {
@@ -67,7 +67,7 @@ export async function getAllApiKeys(): Promise<ApiKey[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as ApiKey[];
+  })) as unknown as ApiKey[];
 }
 
 export async function updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey | null> {
@@ -82,11 +82,12 @@ export async function updateApiKey(id: string, updates: Partial<ApiKey>): Promis
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as ApiKey;
 }
 
@@ -110,10 +111,11 @@ export async function updateApiKeyLastUsed(id: string): Promise<ApiKey | null> {
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as ApiKey;
 }

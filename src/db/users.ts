@@ -69,7 +69,7 @@ export async function getAllUsers(): Promise<User[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as User[];
+  })) as unknown as User[];
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
@@ -84,11 +84,12 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as User;
 }
 
@@ -112,11 +113,12 @@ export async function updateUserBalance(id: string, amount: number): Promise<Use
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as User;
 }
 
@@ -132,10 +134,11 @@ export async function updateUserUsage(id: string, tokens: number): Promise<User 
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as User;
 }

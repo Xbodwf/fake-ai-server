@@ -45,7 +45,7 @@ export async function getInvitationsByInviter(inviterId: string): Promise<Invita
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as InvitationRecord[];
+  })) as unknown as InvitationRecord[];
 }
 
 export async function getInvitationsByInvitee(inviteeId: string): Promise<InvitationRecord[]> {
@@ -56,7 +56,7 @@ export async function getInvitationsByInvitee(inviteeId: string): Promise<Invita
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as InvitationRecord[];
+  })) as unknown as InvitationRecord[];
 }
 
 export async function getInvitationByCode(inviteCode: string): Promise<InvitationRecord | null> {
@@ -80,7 +80,7 @@ export async function getAllInvitationRecords(): Promise<InvitationRecord[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as InvitationRecord[];
+  })) as unknown as InvitationRecord[];
 }
 
 export async function deleteInvitationRecord(id: string): Promise<boolean> {

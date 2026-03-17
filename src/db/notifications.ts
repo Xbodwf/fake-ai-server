@@ -43,7 +43,7 @@ export async function getAllNotifications(): Promise<Notification[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Notification[];
+  })) as unknown as Notification[];
 }
 
 export async function getActiveNotifications(): Promise<Notification[]> {
@@ -58,7 +58,7 @@ export async function getActiveNotifications(): Promise<Notification[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Notification[];
+  })) as unknown as Notification[];
 }
 
 export async function updateNotification(id: string, updates: Partial<Notification>): Promise<Notification | null> {
@@ -76,11 +76,12 @@ export async function updateNotification(id: string, updates: Partial<Notificati
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as Notification;
 }
 

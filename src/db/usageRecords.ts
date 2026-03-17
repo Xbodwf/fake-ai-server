@@ -43,7 +43,7 @@ export async function getUserUsageRecords(userId: string): Promise<UsageRecord[]
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as UsageRecord[];
+  })) as unknown as UsageRecord[];
 }
 
 export async function getUsageRecordsByDateRange(
@@ -67,7 +67,7 @@ export async function getUsageRecordsByDateRange(
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as UsageRecord[];
+  })) as unknown as UsageRecord[];
 }
 
 export async function getUsageRecordsByApiKey(apiKeyId: string): Promise<UsageRecord[]> {
@@ -78,7 +78,7 @@ export async function getUsageRecordsByApiKey(apiKeyId: string): Promise<UsageRe
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as UsageRecord[];
+  })) as unknown as UsageRecord[];
 }
 
 export async function getAllUsageRecords(): Promise<UsageRecord[]> {
@@ -89,7 +89,7 @@ export async function getAllUsageRecords(): Promise<UsageRecord[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as UsageRecord[];
+  })) as unknown as UsageRecord[];
 }
 
 export async function deleteUsageRecordsByApiKey(apiKeyId: string): Promise<number> {

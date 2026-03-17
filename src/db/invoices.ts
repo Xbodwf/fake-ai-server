@@ -43,7 +43,7 @@ export async function getUserInvoices(userId: string): Promise<Invoice[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Invoice[];
+  })) as unknown as Invoice[];
 }
 
 export async function getInvoiceByPeriod(userId: string, period: string): Promise<Invoice | null> {
@@ -67,7 +67,7 @@ export async function getAllInvoices(): Promise<Invoice[]> {
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Invoice[];
+  })) as unknown as Invoice[];
 }
 
 export async function updateInvoice(id: string, updates: Partial<Invoice>): Promise<Invoice | null> {
@@ -82,11 +82,12 @@ export async function updateInvoice(id: string, updates: Partial<Invoice>): Prom
     { returnDocument: 'after' }
   );
 
-  if (!result.value) return null;
+  if (!result || !result.value) return null;
 
+  const doc = result.value as any;
   return {
-    ...result.value,
-    id: result.value._id.toString(),
+    ...doc,
+    id: doc._id.toString(),
   } as unknown as Invoice;
 }
 
@@ -106,5 +107,5 @@ export async function getInvoicesByStatus(status: 'pending' | 'paid' | 'overdue'
   return docs.map(doc => ({
     ...doc,
     id: doc._id.toString(),
-  })) as Invoice[];
+  })) as unknown as Invoice[];
 }
