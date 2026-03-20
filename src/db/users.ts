@@ -97,8 +97,9 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(id) && id.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档，不再包装在 { value } 中
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $set: updates },
@@ -106,8 +107,8 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
@@ -136,8 +137,9 @@ export async function updateUserBalance(id: string, amount: number): Promise<Use
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(id) && id.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $inc: { balance: amount } },
@@ -145,8 +147,8 @@ export async function updateUserBalance(id: string, amount: number): Promise<Use
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }
 
 export async function updateUserUsage(id: string, tokens: number): Promise<User | null> {
@@ -160,8 +162,9 @@ export async function updateUserUsage(id: string, tokens: number): Promise<User 
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(id) && id.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $inc: { totalUsage: tokens } },
@@ -169,8 +172,8 @@ export async function updateUserUsage(id: string, tokens: number): Promise<User 
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }
 
 // 添加用户拥有的模型
@@ -185,8 +188,9 @@ export async function addUserOwnedModel(userId: string, modelId: string): Promis
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(userId) && userId.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 userId 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(userId) && userId.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(userId) },
       { $addToSet: { ownedModels: modelId } },
@@ -194,8 +198,8 @@ export async function addUserOwnedModel(userId: string, modelId: string): Promis
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }
 
 // 移除用户拥有的模型
@@ -210,8 +214,9 @@ export async function removeUserOwnedModel(userId: string, modelId: string): Pro
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(userId) && userId.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 userId 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(userId) && userId.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(userId) },
       { $pull: { ownedModels: modelId as any } },
@@ -219,8 +224,8 @@ export async function removeUserOwnedModel(userId: string, modelId: string): Pro
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }
 
 // 更新用户权限等级
@@ -235,8 +240,9 @@ export async function updateUserPermissionLevel(id: string, level: number): Prom
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if ((!result || !result.value) && ObjectId.isValid(id) && id.length === 24) {
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
     result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $set: { permissionLevel: level } },
@@ -244,6 +250,6 @@ export async function updateUserPermissionLevel(id: string, level: number): Prom
     );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<User>(result.value);
+  if (!result) return null;
+  return toEntity<User>(result as any);
 }

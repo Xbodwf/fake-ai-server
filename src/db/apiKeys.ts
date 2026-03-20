@@ -72,19 +72,18 @@ export async function updateApiKey(id: string, updates: Partial<ApiKey>): Promis
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if (!result || !result.value) {
-    if (ObjectId.isValid(id) && id.length === 24) {
-      result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(id) },
-        { $set: updates },
-        { returnDocument: 'after' }
-      );
-    }
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
+    result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updates },
+      { returnDocument: 'after' }
+    );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<ApiKey>(result.value);
+  if (!result) return null;
+  return toEntity<ApiKey>(result as any);
 }
 
 export async function deleteApiKey(id: string): Promise<boolean> {
@@ -113,17 +112,16 @@ export async function updateApiKeyLastUsed(id: string): Promise<ApiKey | null> {
     { returnDocument: 'after' }
   );
 
-  // 如果没找到，尝试通过 ObjectId 更新
-  if (!result || !result.value) {
-    if (ObjectId.isValid(id) && id.length === 24) {
-      result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(id) },
-        { $set: { lastUsedAt: new Date() } },
-        { returnDocument: 'after' }
-      );
-    }
+  // MongoDB 驱动 v6+ 直接返回文档
+  // 如果没找到且 id 是有效的 ObjectId，尝试通过 ObjectId 更新
+  if (!result && ObjectId.isValid(id) && id.length === 24) {
+    result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { lastUsedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
   }
 
-  if (!result || !result.value) return null;
-  return toEntity<ApiKey>(result.value);
+  if (!result) return null;
+  return toEntity<ApiKey>(result as any);
 }

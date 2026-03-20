@@ -622,3 +622,29 @@ export interface SystemSettings {
     privateKey: string; // EmailJS Private Key
   };
 }
+
+// Rerank API Types
+export interface RerankRequest {
+  model: string;
+  query: string;
+  documents: string[];
+  top_n?: number;
+  return_documents?: boolean;
+  max_chunks_per_doc?: number;
+}
+
+export interface RerankResult {
+  index: number;
+  relevance_score: number;
+  document?: string;
+}
+
+export interface RerankResponse {
+  id: string;
+  results: RerankResult[];
+  model: string;
+  usage: {
+    total_tokens: number;
+    prompt_tokens?: number;
+  };
+}

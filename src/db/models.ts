@@ -86,9 +86,10 @@ export async function updateModelById(id: string, updates: Partial<Model>): Prom
     { returnDocument: 'after' }
   );
 
-  if (!result || !result.value) return null;
-
-  return toEntity<Model>(result.value);
+  // MongoDB 驱动 v6+ 直接返回文档，不再包装在 { value } 中
+  if (!result) return null;
+  
+  return toEntity<Model>(result as any);
 }
 
 // 通过 MongoDB ObjectId 更新模型
@@ -107,9 +108,10 @@ export async function updateModel(objectId: string, updates: Partial<Model>): Pr
     { returnDocument: 'after' }
   );
 
-  if (!result || !result.value) return null;
-
-  return toEntity<Model>(result.value);
+  // MongoDB 驱动 v6+ 直接返回文档，不再包装在 { value } 中
+  if (!result) return null;
+  
+  return toEntity<Model>(result as any);
 }
 
 // 通过模型 ID（字符串）删除模型
@@ -185,9 +187,10 @@ export async function updateModelRating(modelId: string, userId: string, score: 
     { returnDocument: 'after' }
   );
 
-  if (!result || !result.value) return null;
+  // MongoDB 驱动 v6+ 直接返回文档，不再包装在 { value } 中
+  if (!result) return null;
 
-  return toEntity<Model>(result.value);
+  return toEntity<Model>(result as any);
 }
 
 export async function searchModels(query: {

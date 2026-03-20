@@ -61,7 +61,7 @@ export default function Layout({ children, currentPage, onPageChange }: LayoutPr
             letterSpacing: '-0.5px',
           }}
         >
-          Fake OpenAI Server
+          Phantom Mock
         </Typography>
         <Typography variant="caption" color="text.secondary">
           管理控制台

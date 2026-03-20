@@ -15,7 +15,7 @@ export function initWebSocket(server: import('http').Server) {
     // 发送连接确认
     const msg: WSMessage = {
       type: 'connected',
-      payload: { message: '已连接到 Fake OpenAI Server' }
+      payload: { message: '已连接到 Phantom Mock' }
     };
     ws.send(JSON.stringify(msg));
 

@@ -7,6 +7,7 @@ import { createServer } from 'http';
 import { existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { join, extname } from 'path';
 import multer from 'multer';
+import { formatEndpointsForConsole } from './apiEndpoints.js';
 import {
   initializeDatabase,
   loadModels,
@@ -111,26 +112,50 @@ const uploadModelIcon = multer({
 });
 
 // ==================== 初始化数据 ====================
-(async () => {
+
+
+
+async function initializeApp() {
+
   try {
+
     // 初始化数据库连接
+
     await initializeDatabase();
+
     
+
     // 加载所有数据到内存缓存
+
     await loadModels();
+
     await loadApiKeys();
+
     await loadUsers();
+
     await loadUsageRecords();
+
     await loadInvoices();
+
     await loadActions();
+
     await loadWorkflows();
+
     
+
     console.log('[Server] All data loaded successfully');
+
   } catch (error) {
+
     console.error('[Server] Failed to initialize:', error);
+
     process.exit(1);
+
   }
-})();
+
+}
+
+
 
 // ==================== 认证路由 ====================
 app.use('/api/auth', authRoutes);
@@ -1528,9 +1553,10 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 async function start() {
-  // 加载配置和模型
-  await loadModels();
-  await loadApiKeys();
+  // 初始化数据库和数据
+  await initializeApp();
+
+  // 加载配置
   const serverConfig = await getServerConfig();
   const settings = await getSettings();
   const PORT = process.env.PORT || serverConfig.port;
@@ -1538,7 +1564,7 @@ async function start() {
   server.listen(PORT, async () => {
     initWebSocket(server);
     console.log('========================================');
-    console.log('Fake OpenAI Server 已启动');
+    console.log('Phantom Mock 已启动');
     console.log('端口:', PORT);
     console.log('前端地址:', `http://localhost:${PORT}`);
     console.log('========================================');
@@ -1571,22 +1597,7 @@ async function start() {
 
     console.log('========================================');
     console.log('支持的 API 端点:');
-    console.log('  OpenAI:');
-    console.log('    POST /v1/chat/completions');
-    console.log('    POST /v1/responses');
-    console.log('    GET  /v1/models');
-    console.log('    POST /v1/images/generations');
-    console.log('    POST /v1/images/edits');
-    console.log('    POST /v1/embeddings');
-    console.log('    POST /v1/moderations');
-    console.log('  Anthropic:');
-    console.log('    POST /v1/messages');
-    console.log('  Google Gemini:');
-    console.log('    POST /v1beta/models/{model}:generateContent');
-    console.log('    POST /v1beta/models/{model}:streamGenerateContent');
-    console.log('    GET  /v1beta/models');
-    console.log('  视频生成:');
-    console.log('    POST /v1/videos/generations');
+    console.log(formatEndpointsForConsole());
     console.log('========================================');
     console.log('模型数量:', getAllModels().length);
   });

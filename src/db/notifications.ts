@@ -65,6 +65,7 @@ export async function updateNotification(id: string, updates: Partial<Notificati
   const db = getDB();
   const collection = db.collection(COLLECTION_NAME);
 
+  // MongoDB 驱动 v6+ 直接返回文档，不再包装在 { value } 中
   const result = await collection.findOneAndUpdate(
     { _id: new ObjectId(id) },
     {
@@ -76,9 +77,9 @@ export async function updateNotification(id: string, updates: Partial<Notificati
     { returnDocument: 'after' }
   );
 
-  if (!result || !result.value) return null;
+  if (!result) return null;
 
-  const doc = result.value as any;
+  const doc = result as any;
   return {
     ...doc,
     id: doc._id.toString(),
