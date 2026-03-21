@@ -20,7 +20,9 @@ export function LanguageSwitcher() {
     handleClose();
   };
 
-  const currentLang = i18n.language === 'zh' ? '中文' : 'English';
+  // 检查语言代码，支持 'zh', 'zh-CN', 'zh-Hans' 等变体
+  const isZh = i18n.language.startsWith('zh');
+  const currentLang = isZh ? '中文' : 'English';
 
   return (
     <>
@@ -39,13 +41,13 @@ export function LanguageSwitcher() {
       >
         <MenuItem
           onClick={() => handleLanguageChange('en')}
-          selected={i18n.language === 'en'}
+          selected={!isZh}
         >
           English
         </MenuItem>
         <MenuItem
           onClick={() => handleLanguageChange('zh')}
-          selected={i18n.language === 'zh'}
+          selected={isZh}
         >
           中文
         </MenuItem>

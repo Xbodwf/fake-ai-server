@@ -149,6 +149,6 @@ export function createCompositeModelExample(): Model {
       unit: 'K',
     },
     supported_features: ['chat', 'vision'],
-    category: 'custom',
+    type: 'text',
   };
 }

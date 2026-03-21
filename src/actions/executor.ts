@@ -174,8 +174,17 @@ export function getActionMetadata(action: Action): any {
   try {
     const processedCode = preprocessActionCode(action.code);
     const compiledCode = compileTypeScript(processedCode);
-    return extractMetadata(compiledCode);
+    const metadata = extractMetadata(compiledCode);
+    
+    if (!metadata) {
+      console.log('[getActionMetadata] No metadata found in action code');
+    } else {
+      console.log('[getActionMetadata] Extracted metadata:', Object.keys(metadata));
+    }
+    
+    return metadata;
   } catch (error) {
+    console.error('[getActionMetadata] Error extracting metadata:', error);
     return null;
   }
 }

@@ -104,35 +104,48 @@ async function migrateModels(db: any) {
     }
 
     // 转换模型数据
-    const modelsData = config.models.map((model: any, index: number) => ({
-      _id: new ObjectId(),
-      id: model.id,
-      object: 'model',
-      created: Math.floor(Date.now() / 1000) + index,
-      owned_by: model.owned_by || 'custom',
-      description: model.description || '',
-      context_length: model.context_length || 4096,
-      aliases: model.aliases || [],
-      max_output_tokens: model.max_output_tokens,
-      pricing: model.pricing || undefined,
-      api_key: model.api_key,
-      api_base_url: model.api_base_url,
-      api_type: model.api_type,
-      supported_features: model.supported_features,
-      require_api_key: model.require_api_key ?? true,
-      icon: model.icon,
-      // 新增字段
-      rpm: model.rpm || 0,
-      tpm: model.tpm || 0,
-      maxConcurrentRequests: model.maxConcurrentRequests || 100,
-      concurrentQueues: model.concurrentQueues || 10,
-      allowOveruse: model.allowOveruse || 0,
-      tags: model.tags || [],
-      category: model.category || 'chat',
-      // MongoDB 元数据
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    const modelsData = config.models.map((model: any, index: number) => {
+      // 根据 supported_features 推断模型类型
+      let type = model.type || 'text';
+      if (!model.type && model.supported_features) {
+        if (model.supported_features.includes('image')) type = 'image';
+        else if (model.supported_features.includes('embedding')) type = 'embedding';
+        else if (model.supported_features.includes('tts')) type = 'tts';
+        else if (model.supported_features.includes('stt')) type = 'stt';
+        else if (model.supported_features.includes('rerank')) type = 'rerank';
+      }
+
+      return {
+        _id: new ObjectId(),
+        id: model.id,
+        object: 'model',
+        created: Math.floor(Date.now() / 1000) + index,
+        owned_by: model.owned_by || 'custom',
+        description: model.description || '',
+        context_length: model.context_length || 4096,
+        aliases: model.aliases || [],
+        max_output_tokens: model.max_output_tokens,
+        pricing: model.pricing || undefined,
+        api_key: model.api_key,
+        api_base_url: model.api_base_url,
+        api_type: model.api_type,
+        supported_features: model.supported_features,
+        require_api_key: model.require_api_key ?? true,
+        icon: model.icon,
+        type,
+        // 新增字段
+        rpm: model.rpm || 0,
+        tpm: model.tpm || 0,
+        maxConcurrentRequests: model.maxConcurrentRequests || 100,
+        concurrentQueues: model.concurrentQueues || 10,
+        allowOveruse: model.allowOveruse || 0,
+        tags: model.tags || [],
+        category: model.category || 'chat',
+        // MongoDB 元数据
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    });
 
     const collection = db.collection('models');
     const result = await collection.insertMany(modelsData);

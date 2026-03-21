@@ -1,7 +1,7 @@
 // OpenAI API Types
 
 export interface Message {
-  role: 'system' | 'user' | 'assistant' | 'tool';
+  role: string; // 允许任意 role 值，支持不同 API 格式
   content: string | MessageContent[];
   name?: string;
   tool_call_id?: string;
@@ -71,14 +71,15 @@ export interface Model {
   description?: string;
   context_length?: number;
   icon?: string; // 模型图标路径（相对于 /static/models/）
-  
+
+  // 模型类型（必需）
+  type: 'text' | 'image' | 'video' | 'tts' | 'stt' | 'embedding' | 'rerank' | 'responses';
+
   // 模型分类和标签
-  modelType?: string;             // 模型类型（如 chat, image, video, embedding）
   modelSize?: string;             // 模型大小（如 7B, 13B, 70B）
   modelSuffix?: string;           // 模型后缀（如 -instruct, -chat）
   ownerId?: string;               // 归属人ID（用户ID）
   tags?: string[];                // 模型标签（用于标记类型，如专属机房等）
-  category?: 'chat' | 'image' | 'video' | 'custom'; // 模型分类
   capabilities?: string[];        // 模型能力列表
   
   // 新增字段

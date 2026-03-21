@@ -49,7 +49,7 @@ export function AdminModelsPage() {
     id: '',
     description: '',
     owned_by: '',
-    category: '',
+    type: 'text' as 'text' | 'image' | 'video' | 'tts' | 'stt' | 'embedding' | 'rerank' | 'responses',
     icon: '',
   });
   const [pricing, setPricing] = useState({
@@ -101,7 +101,7 @@ export function AdminModelsPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShowCreateDialog(false);
-      setFormData({ id: '', description: '', owned_by: '', category: '', icon: '' });
+      setFormData({ id: '', description: '', owned_by: '', type: 'text', icon: '' });
       setPricing({ input: 0, output: 0, unit: 'K', type: 'token', perRequest: 0 });
       setSuccess(t('models.createdSuccessfully'));
       await fetchModels();
@@ -116,7 +116,7 @@ export function AdminModelsPage() {
       id: model.id,
       description: model.description || '',
       owned_by: model.owned_by || '',
-      category: model.category || '',
+      type: model.type || 'text',
       icon: model.icon || '',
     });
     setPricing({
@@ -138,6 +138,7 @@ export function AdminModelsPage() {
         `/api/admin/models/${encodeURIComponent(selectedModel.id)}`,
         {
           ...formData,
+          type: formData.type,
           pricing: pricing.type === 'request' ? { perRequest: pricing.perRequest } : pricing,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -186,7 +187,7 @@ export function AdminModelsPage() {
           startIcon={<Plus size={20} />}
           onClick={() => {
             setSelectedModel(null);
-            setFormData({ id: '', description: '', owned_by: '', category: '', icon: '' });
+            setFormData({ id: '', description: '', owned_by: '', type: 'text', icon: '' });
             setPricing({ input: 0, output: 0, unit: 'K', type: 'token', perRequest: 0 });
             setShowCreateDialog(true);
           }}
@@ -219,11 +220,11 @@ export function AdminModelsPage() {
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'action.hover' }}>
                     <TableCell>ID</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Provider</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Pricing</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell>{t('models.details.description')}</TableCell>
+                    <TableCell>{t('models.details.provider')}</TableCell>
+                    <TableCell>{t('models.category')}</TableCell>
+                    <TableCell>{t('models.details.pricing')}</TableCell>
+                    <TableCell align="right">{t('common.actions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -235,7 +236,7 @@ export function AdminModelsPage() {
                       <TableCell>{model.description || '-'}</TableCell>
                       <TableCell>{model.owned_by || '-'}</TableCell>
                       <TableCell>
-                        <Chip label={model.category || 'other'} size="small" />
+                        <Chip label={model.type || 'text'} size="small" />
                       </TableCell>
                       <TableCell>
                         {model.pricing?.type === 'request'
@@ -279,16 +280,17 @@ export function AdminModelsPage() {
           setSelectedModel(null);
           setError('');
         }}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>
           {showEditDialog ? t('models.editModel') : t('models.createModel')}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               fullWidth
+              size="small"
               label="Model ID"
               value={formData.id}
               onChange={(e) => setFormData({ ...formData, id: e.target.value })}
@@ -297,6 +299,7 @@ export function AdminModelsPage() {
             />
             <TextField
               fullWidth
+              size="small"
               label="Description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -305,6 +308,7 @@ export function AdminModelsPage() {
             />
             <TextField
               fullWidth
+              size="small"
               label="Provider"
               value={formData.owned_by}
               onChange={(e) => setFormData({ ...formData, owned_by: e.target.value })}
@@ -312,31 +316,44 @@ export function AdminModelsPage() {
             />
             <TextField
               fullWidth
-              label="Category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              placeholder="chat, image, video, etc."
-            />
-            <TextField
-              fullWidth
+              size="small"
               label="Icon URL"
               value={formData.icon}
               onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
               placeholder="/static/models/icon.png"
             />
+            <FormControl fullWidth size="small">
+              <InputLabel>{t('models.category')}</InputLabel>
+              <Select
+                value={formData.type || 'text'}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                label={t('models.category')}
+              >
+                <MenuItem value="text">Text</MenuItem>
+                <MenuItem value="image">Image</MenuItem>
+                <MenuItem value="video">Video</MenuItem>
+                <MenuItem value="tts">TTS</MenuItem>
+                <MenuItem value="stt">STT</MenuItem>
+                <MenuItem value="embedding">Embedding</MenuItem>
+                <MenuItem value="rerank">Rerank</MenuItem>
+                <MenuItem value="responses">Responses</MenuItem>
+              </Select>
+            </FormControl>
 
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mt: 2 }}>
               Pricing
             </Typography>
 
             <FormControl fullWidth size="small">
-              <InputLabel>Type</InputLabel>
+              <InputLabel id="pricing-type-label">Pricing Type</InputLabel>
               <Select
+                labelId="pricing-type-label"
+                id="pricing-type-select"
                 value={pricing.type}
                 onChange={(e) =>
                   setPricing({ ...pricing, type: e.target.value as any })
                 }
-                label="Type"
+                label="Pricing Type"
               >
                 <MenuItem value="token">Token-based</MenuItem>
                 <MenuItem value="request">Per-request</MenuItem>

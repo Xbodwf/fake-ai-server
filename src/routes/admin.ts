@@ -415,17 +415,21 @@ router.get('/models/:id', authMiddleware, adminMiddleware, (req: AuthRequest, re
  */
 router.post('/models', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { id, description, owned_by, category, pricing, supported_features, icon } = req.body;
+    const { id, description, owned_by, type, pricing, supported_features, icon } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'Model ID is required' });
+    }
+
+    if (!type) {
+      return res.status(400).json({ error: 'Model type is required' });
     }
 
     const newModel = await addModel({
       id,
       description,
       owned_by,
-      category,
+      type,
       pricing,
       supported_features,
       icon,

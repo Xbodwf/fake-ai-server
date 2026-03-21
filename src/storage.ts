@@ -199,10 +199,30 @@ export function getAllApiKeys(): ApiKey[] {
 export async function createApiKey(name: string, userId?: string, permissions?: ApiKey['permissions']): Promise<ApiKey> {
   // 生成更复杂的 API key: sk- + 48位 base62 字符
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const randomValues = randomBytes(48);
-  const keySuffix = Array.from(randomValues).map(b => chars[b % chars.length]).join('');
-  const key = `sk-${keySuffix}`;
-  
+
+  let key: string;
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  // 重试生成唯一的 API Key
+  do {
+    const randomValues = randomBytes(48);
+    const keySuffix = Array.from(randomValues).map(b => chars[b % chars.length]).join('');
+    key = `sk-${keySuffix}`;
+
+    // 检查是否已存在
+    const existing = apiKeysCache.find(k => k.key === key);
+    if (!existing) {
+      break;
+    }
+
+    attempts++;
+  } while (attempts < maxAttempts);
+
+  if (attempts >= maxAttempts) {
+    throw new Error('Failed to generate unique API key after multiple attempts');
+  }
+
   const apiKey = await apiKeysDB.createApiKey({
     key,
     name,
@@ -385,7 +405,20 @@ export async function createInvoice(invoice: Omit<Invoice, 'id'>): Promise<Invoi
 
 export async function loadActions(): Promise<Action[]> {
   try {
-    actionsCache = await actionsDB.getAllActions();
+    const actions = await actionsDB.getAllActions();
+    // 转换 ID 为 @uid/name 格式
+    actionsCache = actions.map(action => {
+      if (action.createdBy) {
+        const user = getUserById(action.createdBy);
+        if (user && user.uid) {
+          return {
+            ...action,
+            id: `@${user.uid}/${action.name}`,
+          };
+        }
+      }
+      return action;
+    });
     return actionsCache;
   } catch (e) {
     console.error('[Storage] Failed to load actions:', e);
@@ -419,12 +452,24 @@ export function getPublicAndUserActions(userId?: string): Action[] {
 
 export async function createAction(action: Omit<Action, 'id' | 'createdAt' | 'updatedAt' | 'version'>): Promise<Action> {
   const now = Date.now();
+  
+  // 先计算正确的 ID
+  let actionId: string | undefined;
+  if (action.createdBy) {
+    const user = getUserById(action.createdBy);
+    if (user && user.uid) {
+      actionId = `@${user.uid}/${action.name}`;
+    }
+  }
+
   const newAction = await actionsDB.createAction({
     ...action,
+    id: actionId, // 传入计算好的 ID
     createdAt: now,
     updatedAt: now,
     version: 1,
   });
+
   actionsCache.push(newAction);
   return newAction;
 }

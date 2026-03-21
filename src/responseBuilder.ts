@@ -75,6 +75,7 @@ export function getModelsResponse(): ModelsResponse {
       object: 'model' as const,
       created: 1700000000,
       owned_by: 'openai',
+      type: 'text' as const,
     })),
   };
 }

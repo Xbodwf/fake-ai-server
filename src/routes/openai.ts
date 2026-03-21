@@ -276,6 +276,18 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     });
   }
 
+  // 验证模型类型是否支持聊天端点
+  const supportedTypes = ['text', 'embedding', 'rerank', 'responses'];
+  if (!supportedTypes.includes(modelExists.type)) {
+    return res.status(400).json({
+      error: {
+        message: `Model '${body.model}' (type: ${modelExists.type}) does not support chat completions`,
+        type: 'invalid_request_error',
+        code: 'model_type_not_supported',
+      }
+    });
+  }
+
   // 计费检查和权限检查
   const apiKeyStr = extractApiKey(req);
   let apiKeyObj: any = null;
@@ -353,7 +365,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
   });
   console.log('========================================\n');
 
-  await handleChatRequest(body, requestId, isStream, res, apiKeyObj);
+  await handleChatRequest(body, requestId, isStream, res, req, apiKeyObj);
 });
 
 /**
@@ -372,6 +384,39 @@ router.post('/completions', (req: Request, res: Response) => {
  * POST /v1/embeddings - 向量嵌入
  */
 router.post('/embeddings', (req: Request, res: Response) => {
+  const modelId = req.body.model;
+
+  if (!modelId) {
+    return res.status(400).json({
+      error: {
+        message: 'model is required',
+        type: 'invalid_request_error',
+      }
+    });
+  }
+
+  const model = getModel(modelId);
+  if (!model) {
+    return res.status(404).json({
+      error: {
+        message: `Model '${modelId}' not found`,
+        type: 'invalid_request_error',
+        code: 'model_not_found',
+      }
+    });
+  }
+
+  // 验证模型类型是否为 embedding
+  if (model.type !== 'embedding') {
+    return res.status(400).json({
+      error: {
+        message: `Model '${modelId}' (type: ${model.type}) does not support embeddings`,
+        type: 'invalid_request_error',
+        code: 'model_type_not_supported',
+      }
+    });
+  }
+
   res.json({
     object: 'list',
     data: [{
@@ -379,7 +424,7 @@ router.post('/embeddings', (req: Request, res: Response) => {
       embedding: new Array(1536).fill(0),
       index: 0,
     }],
-    model: req.body.model || 'text-embedding-ada-002',
+    model: modelId,
     usage: {
       prompt_tokens: 0,
       total_tokens: 0,
@@ -407,6 +452,7 @@ async function handleChatRequest(
   requestId: string,
   isStream: boolean,
   res: Response,
+  req: Request,
   apiKeyObj?: any
 ) {
   const requestParams = {
@@ -427,9 +473,9 @@ async function handleChatRequest(
   // 如果没有 apiKeyObj，检查是否有内部调用的 header
   if (!userId) {
     // Express 会将 header 转换为小写
-    const internalUserId = (res.req as any).headers['x-internal-user-id'];
-    const internalApiKeyId = (res.req as any).headers['x-internal-api-key-id'];
-    console.log('[handleChatRequest] Checking internal headers:', { internalUserId, internalApiKeyId, allHeaders: (res.req as any).headers });
+    const internalUserId = req.headers['x-internal-user-id'] as string;
+    const internalApiKeyId = req.headers['x-internal-api-key-id'] as string;
+    console.log('[handleChatRequest] Checking internal headers:', { internalUserId, internalApiKeyId, allHeaders: req.headers });
     if (internalUserId) {
       userId = internalUserId;
       apiKeyId = internalApiKeyId || 'internal';
@@ -542,13 +588,23 @@ async function handleChatRequest(
         // AI 转发先返回
         if (!raceResult.result.success) {
           console.log(`[Forwarder] 转发失败: ${raceResult.result.error}`);
-          return res.status(502).json({
-            error: {
-              message: `转发失败: ${raceResult.result.error}`,
-              type: 'forwarding_error',
-              code: 'forwarding_failed',
-            }
-          });
+
+          // 尝试解析标准化的错误响应
+          let errorResponse: any;
+          try {
+            errorResponse = JSON.parse(raceResult.result.error);
+          } catch {
+            // 如果不是 JSON，使用默认格式
+            errorResponse = {
+              error: {
+                message: raceResult.result.error,
+                type: 'forwarding_error',
+                code: 'forwarding_failed',
+              }
+            };
+          }
+
+          return res.status(502).json(errorResponse);
         }
 
         console.log('[Forwarder] AI 转发成功');
@@ -949,6 +1005,17 @@ router.post('/rerank', async (req: Request, res: Response) => {
         message: `Model '${body.model}' not found`,
         type: 'invalid_request_error',
         code: 'model_not_found',
+      }
+    });
+  }
+
+  // 验证模型类型是否为 rerank
+  if (model.type !== 'rerank') {
+    return res.status(400).json({
+      error: {
+        message: `Model '${body.model}' (type: ${model.type}) does not support reranking`,
+        type: 'invalid_request_error',
+        code: 'model_type_not_supported',
       }
     });
   }

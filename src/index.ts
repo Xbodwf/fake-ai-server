@@ -259,36 +259,26 @@ async function apiKeyAuthMiddleware(req: Request, res: Response, next: () => voi
 // ==================== 管理 API ====================
 
 // GET /api/models - 获取模型列表（所有登录用户可访问）
+// GET /api/models - 获取模型列表（仅返回真实模型，不包括 Actions）
 app.get('/api/models', authMiddleware, (req: Request, res: Response) => {
   const models = getAllModels();
 
-  // 添加 Actions 作为模型
-  const userId = (req as any).user?.id;
-  const actions = getPublicAndUserActions(userId);
-  const actionModels = actions.map(action => ({
-    id: `actions/${action.name}`,
-    object: 'model',
-    created: action.createdAt,
-    owned_by: 'user',
-    description: action.description || `Action: ${action.name}`,
-    context_length: 4096,
-    max_output_tokens: 2048,
-    type: 'action',
-    actionId: action.id,
-  }));
-
   res.json({
-    models: [...models, ...actionModels],
-    data: [...models, ...actionModels] // 兼容两种格式
+    models: models,
+    data: models // 兼容两种格式
   });
 });
 
 // POST /api/models - 添加模型
 app.post('/api/models', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
-  const { id, owned_by, description, context_length, aliases, max_output_tokens, pricing, api_key, api_base_url, api_type, supported_features, require_api_key, icon } = req.body;
+  const { id, owned_by, description, context_length, aliases, max_output_tokens, pricing, api_key, api_base_url, api_type, supported_features, require_api_key, icon, type } = req.body;
 
   if (!id) {
     return res.status(400).json({ error: 'Model ID is required' });
+  }
+
+  if (!type) {
+    return res.status(400).json({ error: 'Model type is required' });
   }
 
   if (getModel(id)) {
@@ -310,6 +300,7 @@ app.post('/api/models', authMiddleware, adminMiddleware, async (req: Request, re
       supported_features,
       require_api_key: require_api_key ?? true, // 默认需要 API Key
       icon,
+      type,
     });
     broadcastModelsUpdate(getAllModels());
     res.json({ success: true, model: newModel });
@@ -797,6 +788,31 @@ app.post('/v1/images/generations', async (req: Request, res: Response) => {
     });
   }
 
+  const modelId = body.model || 'dall-e-3';
+  const model = getModel(modelId);
+
+  // 验证模型存在
+  if (!model) {
+    return res.status(404).json({
+      error: {
+        message: `Model '${modelId}' not found`,
+        type: 'invalid_request_error',
+        code: 'model_not_found',
+      }
+    });
+  }
+
+  // 验证模型类型是否为 image
+  if (model.type !== 'image') {
+    return res.status(400).json({
+      error: {
+        message: `Model '${modelId}' (type: ${model.type}) does not support image generation`,
+        type: 'invalid_request_error',
+        code: 'model_type_not_supported',
+      }
+    });
+  }
+
   const requestId = generateRequestId();
   const n = body.n || 1;
   const size = body.size || '1024x1024';
@@ -804,7 +820,7 @@ app.post('/v1/images/generations', async (req: Request, res: Response) => {
   console.log('\n========================================');
   console.log('收到新的图片生成请求');
   console.log('请求ID:', requestId);
-  console.log('模型:', body.model || 'dall-e-3');
+  console.log('模型:', modelId);
   console.log('提示词:', body.prompt.substring(0, 100));
   console.log('数量:', n);
   console.log('尺寸:', size);
@@ -814,13 +830,13 @@ app.post('/v1/images/generations', async (req: Request, res: Response) => {
   // 创建待处理请求
   const pending: PendingRequest = {
     requestId,
-    request: { model: body.model || 'dall-e-3', messages: [] },
+    request: { model: modelId, messages: [] },
     isStream: false,
     createdAt: Date.now(),
     resolve: () => {},
     requestType: 'image',
     imageRequest: {
-      model: body.model || 'dall-e-3',
+      model: modelId,
       prompt: body.prompt,
       n,
       size,
@@ -955,6 +971,31 @@ app.post('/v1/videos/generations', async (req: Request, res: Response) => {
     });
   }
 
+  const modelId = body.model || 'sora';
+  const model = getModel(modelId);
+
+  // 验证模型存在
+  if (!model) {
+    return res.status(404).json({
+      error: {
+        message: `Model '${modelId}' not found`,
+        type: 'invalid_request_error',
+        code: 'model_not_found',
+      }
+    });
+  }
+
+  // 验证模型类型是否为 video
+  if (model.type !== 'video') {
+    return res.status(400).json({
+      error: {
+        message: `Model '${modelId}' (type: ${model.type}) does not support video generation`,
+        type: 'invalid_request_error',
+        code: 'model_type_not_supported',
+      }
+    });
+  }
+
   const requestId = generateRequestId();
   const duration = body.duration || 5;
   const aspectRatio = body.aspect_ratio || '16:9';
@@ -962,7 +1003,7 @@ app.post('/v1/videos/generations', async (req: Request, res: Response) => {
   console.log('\n========================================');
   console.log('收到新的视频生成请求');
   console.log('请求ID:', requestId);
-  console.log('模型:', body.model || 'sora');
+  console.log('模型:', modelId);
   console.log('提示词:', body.prompt.substring(0, 100));
   console.log('时长:', duration, '秒');
   console.log('宽高比:', aspectRatio);
@@ -971,13 +1012,13 @@ app.post('/v1/videos/generations', async (req: Request, res: Response) => {
   // 创建待处理请求
   const pending: PendingRequest = {
     requestId,
-    request: { model: body.model || 'sora', messages: [] },
+    request: { model: modelId, messages: [] },
     isStream: false,
     createdAt: Date.now(),
     resolve: () => {},
     requestType: 'video',
     videoRequest: {
-      model: body.model || 'sora',
+      model: modelId,
       prompt: body.prompt,
       size: body.size,
       duration,
@@ -1044,6 +1085,18 @@ app.post('/v1/messages', async (req: Request, res: Response) => {
       error: {
         type: 'invalid_request_error',
         message: `Model '${body.model}' not found`
+      }
+    });
+  }
+
+  // 验证模型类型是否支持消息端点
+  const supportedTypes = ['text', 'embedding', 'rerank', 'responses'];
+  if (!supportedTypes.includes(modelExists.type)) {
+    return res.status(400).json({
+      type: 'error',
+      error: {
+        type: 'invalid_request_error',
+        message: `Model '${body.model}' (type: ${modelExists.type}) does not support messages`
       }
     });
   }
@@ -1218,23 +1271,73 @@ app.post('/v1/messages', async (req: Request, res: Response) => {
   }
 });
 
+// ==================== 模型类型验证函数 ====================
+
+// 检查模型是否支持特定端点
+function isModelSupportedByEndpoint(model: Model | null, endpoint: string): boolean {
+  if (!model) return false;
+
+  const modelType = model.type;
+
+  switch (endpoint) {
+    // 文本输出端点：支持 text, embedding, rerank, responses
+    case 'chat':
+    case 'messages':
+    case 'generateContent':
+    case 'streamGenerateContent':
+      return ['text', 'embedding', 'rerank', 'responses'].includes(modelType);
+
+    // 嵌入端点：仅支持 embedding
+    case 'embeddings':
+    case 'embedContent':
+      return modelType === 'embedding';
+
+    // 图片生成端点：仅支持 image
+    case 'images':
+      return modelType === 'image';
+
+    // 视频生成端点：仅支持 video
+    case 'videos':
+      return modelType === 'video';
+
+    // TTS 端点：仅支持 tts
+    case 'audio/speech':
+      return modelType === 'tts';
+
+    // STT 端点：仅支持 stt
+    case 'audio/transcriptions':
+      return modelType === 'stt';
+
+    // 重排序端点：仅支持 rerank
+    case 'rerank':
+      return modelType === 'rerank';
+
+    // Responses 端点：仅支持 responses
+    case 'responses':
+      return modelType === 'responses';
+
+    default:
+      return false;
+  }
+}
+
 // ==================== Google Gemini API 路由 ====================
 
 // 所有 /v1beta/* 路由应用 API Key 认证中间件
 app.use('/v1beta', apiKeyAuthMiddleware);
 
 // 辅助函数：从 Gemini 路径解析模型 ID 和操作类型
-// Gemini API 路径格式: /v1beta/models/{modelId}:generateContent 或 :streamGenerateContent
+// Gemini API 路径格式: /v1beta/models/{modelId}:generateContent 或 :streamGenerateContent 或 :embedContent
 function parseGeminiModelPath(path: string): { modelId: string; action: string } | null {
   // 匹配 /v1beta/models/{modelId}:{action}
-  const match = path.match(/\/v1beta\/models\/(.+):(generateContent|streamGenerateContent)$/);
+  const match = path.match(/\/v1beta\/models\/(.+):(generateContent|streamGenerateContent|embedContent)$/);
   if (match) {
     return { modelId: decodeURIComponent(match[1]), action: match[2] };
   }
   return null;
 }
 
-// POST /v1beta/models/* - Gemini generateContent 和 streamGenerateContent
+// POST /v1beta/models/* - Gemini generateContent、streamGenerateContent 和 embedContent
 // 使用通配符路由支持模型 ID 包含特殊字符（如斜杠）
 app.post('/v1beta/models/*', async (req: Request, res: Response) => {
   const path = req.originalUrl.split('?')[0]; // 移除查询参数
@@ -1247,6 +1350,27 @@ app.post('/v1beta/models/*', async (req: Request, res: Response) => {
   }
 
   const { modelId, action } = parsed;
+  const model = getModel(modelId);
+
+  // 验证模型存在
+  if (!model) {
+    return res.status(404).json({
+      error: { code: 404, message: `Model ${modelId} not found`, status: 'NOT_FOUND' }
+    });
+  }
+
+  // 验证模型类型是否支持该端点
+  if (!isModelSupportedByEndpoint(model, action)) {
+    return res.status(400).json({
+      error: { code: 400, message: `Model ${modelId} (type: ${model.type}) does not support ${action}`, status: 'BAD_REQUEST' }
+    });
+  }
+
+  // 处理 embedContent 请求
+  if (action === 'embedContent') {
+    return handleGeminiEmbedContent(req, res, modelId);
+  }
+
   const isStream = action === 'streamGenerateContent';
   return handleGeminiRequest(req, res, modelId, isStream);
 });
@@ -1307,8 +1431,8 @@ async function handleGeminiRequest(
   const body = req.body;
 
   // 验证模型是否存在
-  const modelExists = getModel(modelId);
-  if (!modelExists) {
+  const model = getModel(modelId);
+  if (!model) {
     return res.status(404).json({
       error: { code: 404, message: `Model ${modelId} not found`, status: 'NOT_FOUND' }
     });
@@ -1338,11 +1462,99 @@ async function handleGeminiRequest(
     });
   }
 
+  const chatRequest: ChatCompletionRequest = {
+    model: modelId,
+    messages,
+    stream: isStream,
+  };
+
+  // 检查是否配置了转发
+  const hasForwarding = model && model.api_base_url && model.api_key;
+
+  if (hasForwarding) {
+    // 配置了转发
+    console.log(`[Gemini Forwarder] 转发模式：${model.api_type || 'google'} API`);
+    
+    // 导入转发函数
+    const { forwardGeminiRequest, forwardGeminiStreamRequest } = await import('./forwarder.js');
+    
+    if (isStream) {
+      // 流式转发
+      console.log('[Gemini Forwarder] 流式转发');
+      try {
+        await forwardGeminiStreamRequest(model, body, res);
+      } catch (error: any) {
+        console.error('[Gemini Forwarder] 流式转发失败:', error.message);
+        if (!res.headersSent) {
+          return res.status(502).json({
+            error: { code: 502, message: `转发失败: ${error.message}`, status: 'BAD_GATEWAY' }
+          });
+        }
+      }
+      return;
+    } else {
+      // 非流式转发，允许用户抢先回复
+      console.log('[Gemini Forwarder] 非流式转发，允许用户抢先回复');
+      
+      // 创建 pending request
+      const pending: PendingRequest = {
+        requestId,
+        request: chatRequest,
+        isStream: false,
+        createdAt: Date.now(),
+        resolve: () => {},
+      };
+
+      let userResponded = false;
+      const responsePromise = new Promise<string>((resolve) => {
+        pending.resolve = (content: string) => {
+          userResponded = true;
+          resolve(content);
+        };
+      });
+
+      addPendingRequest(pending);
+      broadcastRequest(pending);
+
+      // 同时发起转发请求
+      const forwardPromise = forwardGeminiRequest(model, body);
+
+      // 竞速：用户回复 vs AI 转发
+      const raceResult = await Promise.race([
+        responsePromise.then(content => ({ type: 'user' as const, content })),
+        forwardPromise.then(result => ({ type: 'forward' as const, result })),
+      ]);
+
+      removePendingRequest(requestId);
+
+      if (raceResult.type === 'user') {
+        // 用户抢先回复
+        console.log('[Manual] 用户抢先回复');
+        return res.json(buildGeminiResponse(raceResult.content, modelId));
+      } else {
+        // AI 转发先返回
+        if (!raceResult.result.success) {
+          console.log(`[Gemini Forwarder] 转发失败: ${raceResult.result.error}`);
+          return res.status(502).json({
+            error: { code: 502, message: raceResult.result.error, status: 'BAD_GATEWAY' }
+          });
+        }
+
+        console.log('[Gemini Forwarder] AI 转发成功');
+        return res.json(raceResult.result.response);
+      }
+    }
+  }
+
+  // 检查是否允许人工回复
+  const allowManualReply = model?.allowManualReply !== false; // 默认允许
+
   console.log('\n========================================');
   console.log('收到新的 generateContent 请求 [Google Gemini]');
   console.log('请求ID:', requestId);
   console.log('模型:', modelId);
   console.log('流式:', isStream);
+  console.log('允许人工回复:', allowManualReply);
   console.log('消息数:', messages.length);
   console.log('当前前端连接数:', getConnectedClientsCount());
   console.log('----------------------------------------');
@@ -1353,11 +1565,12 @@ async function handleGeminiRequest(
   });
   console.log('========================================\n');
 
-  const chatRequest: ChatCompletionRequest = {
-    model: modelId,
-    messages,
-    stream: isStream,
-  };
+  // 如果不允许人工回复，返回错误
+  if (!allowManualReply) {
+    return res.status(503).json({
+      error: { code: 503, message: 'Model does not support manual reply and no forwarding configured', status: 'SERVICE_UNAVAILABLE' }
+    });
+  }
 
   if (isStream) {
     // Gemini 流式响应格式
@@ -1447,6 +1660,146 @@ async function handleGeminiRequest(
       });
     }
   }
+}
+
+async function handleGeminiEmbedContent(
+  req: Request,
+  res: Response,
+  modelId: string
+) {
+  const body = req.body;
+
+  // 验证模型是否存在
+  const model = getModel(modelId);
+  if (!model) {
+    return res.status(404).json({
+      error: { code: 404, message: `Model ${modelId} not found`, status: 'NOT_FOUND' }
+    });
+  }
+
+  // 验证模型类型是否为 embedding
+  if (model.type !== 'embedding') {
+    return res.status(400).json({
+      error: { code: 400, message: `Model ${modelId} is not an embedding model`, status: 'BAD_REQUEST' }
+    });
+  }
+
+  // 提取文本内容
+  let textContent = '';
+
+  if (body.content?.parts) {
+    // 标准 Gemini embedContent 格式
+    textContent = body.content.parts
+      .map((p: { text?: string }) => p.text || '')
+      .filter((t: string) => t)
+      .join('\n');
+  } else if (body.text) {
+    // 简化格式
+    textContent = body.text;
+  }
+
+  if (!textContent) {
+    return res.status(400).json({
+      error: { code: 400, message: 'No text content provided', status: 'BAD_REQUEST' }
+    });
+  }
+
+  console.log('\n========================================');
+  console.log('收到新的 embedContent 请求 [Google Gemini]');
+  console.log('模型:', modelId);
+  console.log('文本长度:', textContent.length);
+  console.log('当前前端连接数:', getConnectedClientsCount());
+  console.log('----------------------------------------');
+
+  const requestId = generateRequestId();
+
+  // 创建嵌入请求
+  const embeddingRequest = {
+    model: modelId,
+    input: textContent,
+  };
+
+  const pending: PendingRequest = {
+    requestId,
+    request: { model: modelId, messages: [] },
+    isStream: false,
+    createdAt: Date.now(),
+    resolve: () => {},
+    requestType: 'embedding' as any,
+  };
+
+  const responsePromise = new Promise<string>((resolve) => {
+    pending.resolve = resolve;
+  });
+
+  addPendingRequest(pending);
+  broadcastRequest(pending);
+
+  const timeout = setTimeout(() => {
+    removePendingRequest(requestId);
+    res.json({
+      embedding: {
+        values: generateEmbedding(textContent)
+      }
+    });
+  }, 10 * 60 * 1000);
+
+  try {
+    const content = await responsePromise;
+    clearTimeout(timeout);
+
+    // 解析嵌入向量
+    let embedding: number[] = [];
+    try {
+      const parsed = JSON.parse(content);
+      embedding = parsed.embedding || parsed.values || generateEmbedding(textContent);
+    } catch {
+      embedding = generateEmbedding(textContent);
+    }
+
+    console.log('生成的嵌入向量维度:', embedding.length);
+    console.log('========================================\n');
+
+    res.json({
+      embedding: {
+        values: embedding
+      }
+    });
+  } catch {
+    clearTimeout(timeout);
+    res.status(500).json({
+      error: { code: 500, message: 'Internal server error', status: 'INTERNAL' }
+    });
+  }
+}
+
+
+// 生成模拟的嵌入向量
+function generateEmbedding(text: string): number[] {
+  // 使用简单的哈希函数生成确定性向量
+  // 在实际应用中应该使用真实的嵌入模型
+  const dimension = 768; // 标准嵌入维度
+  const embedding: number[] = [];
+
+  // 使用文本的哈希值作为种子
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // 转换为32位整数
+  }
+
+  // 生成确定性的向量
+  for (let i = 0; i < dimension; i++) {
+    // 使用伪随机数生成器生成向量值
+    const seed = hash + i;
+    const x = Math.sin(seed) * 10000;
+    const value = x - Math.floor(x);
+    // 归一化到 [-1, 1] 范围
+    embedding.push(value * 2 - 1);
+  }
+
+  return embedding;
 }
 
 function buildAnthropicResponse(content: string, model: string, requestId: string, maxTokens: number) {

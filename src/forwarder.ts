@@ -4,6 +4,81 @@ import type { Response } from 'express';
 import { generateRequestId } from './responseBuilder.js';
 
 /**
+ * 标准化 API 错误响应格式
+ * 将不同 API 提供商的错误格式统一为 OpenAI 格式
+ */
+export function standardizeErrorResponse(error: any, apiType: string = 'unknown'): any {
+  // 如果已经是标准格式，直接返回
+  if (error.error && error.error.message && error.error.type) {
+    return error;
+  }
+
+  let message = 'Unknown error';
+  let type = 'api_error';
+  let code = 'internal_error';
+
+  // 处理 axios 错误
+  if (error.response) {
+    const status = error.response.status;
+    const data = error.response.data;
+
+    // 根据 API 类型解析错误
+    switch (apiType) {
+      case 'openai':
+      case 'azure':
+      case 'custom':
+        // OpenAI 格式错误
+        if (data.error) {
+          message = data.error.message || 'OpenAI API error';
+          type = data.error.type || 'api_error';
+          code = data.error.code || 'api_error';
+        } else {
+          message = data.message || `HTTP ${status}`;
+        }
+        break;
+
+      case 'anthropic':
+        // Anthropic 格式错误
+        if (data.error) {
+          message = data.error.message || 'Anthropic API error';
+          type = data.error.type || 'api_error';
+        } else {
+          message = data.message || `HTTP ${status}`;
+        }
+        break;
+
+      case 'google':
+        // Google 格式错误
+        if (data.error) {
+          if (typeof data.error === 'object') {
+            message = data.error.message || 'Google API error';
+            code = data.error.code || 'api_error';
+          } else {
+            message = data.error;
+          }
+        } else {
+          message = data.message || `HTTP ${status}`;
+        }
+        break;
+
+      default:
+        message = data.message || data.error?.message || `HTTP ${status}`;
+    }
+  } else if (error.message) {
+    message = error.message;
+  }
+
+  return {
+    error: {
+      message,
+      type,
+      code,
+      api_type: apiType,
+    }
+  };
+}
+
+/**
  * 获取转发时使用的模型名称
  */
 function getForwardModelName(model: Model, requestedModel: string): string {
@@ -39,10 +114,13 @@ export async function forwardChatRequest(
       default:
         return { success: false, error: `Unsupported API type: ${apiType}` };
     }
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Forwarder] Error forwarding to ${apiType}:`, errorMessage);
-    return { success: false, error: errorMessage };
+
+    // 返回标准化的错误响应
+    const standardizedError = standardizeErrorResponse(error, apiType);
+    return { success: false, error: JSON.stringify(standardizedError) };
   }
 }
 
@@ -272,4 +350,256 @@ async function forwardToGoogle(
       },
     },
   };
+}
+
+/**
+ * 转发 Gemini 格式的请求（非流式）
+ * 根据 api_type 决定如何转发和转换格式
+ */
+export async function forwardGeminiRequest(
+  model: Model,
+  geminiBody: any
+): Promise<{ success: true; response: any } | { success: false; error: string }> {
+  if (!model.api_base_url || !model.api_key) {
+    return { success: false, error: 'Model not configured for forwarding' };
+  }
+
+  const apiType = model.api_type || 'google';
+
+  try {
+    // 如果目标是 Google/Gemini API，直接转发 Gemini 格式
+    if (apiType === 'google') {
+      const forwardModel = model.forwardModelName || model.id;
+      const url = `${model.api_base_url}/v1beta/models/${forwardModel}:generateContent?key=${model.api_key}`;
+
+      console.log(`[Gemini Forwarder] 转发到 Gemini API: ${url}`);
+
+      const response = await axios.post(url, geminiBody, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000,
+      });
+
+      return { success: true, response: response.data };
+    }
+
+    // 如果目标是其他 API（OpenAI、Anthropic 等），需要转换格式
+    // 1. 将 Gemini 格式转换为 OpenAI 格式
+    const messages: ChatCompletionRequest['messages'] = [];
+
+    // 提取 system instruction
+    if (geminiBody.systemInstruction?.parts) {
+      const systemContent = geminiBody.systemInstruction.parts
+        .map((p: { text?: string }) => p.text || '')
+        .join('\n');
+      if (systemContent) {
+        messages.push({ role: 'system', content: systemContent });
+      }
+    }
+
+    // 提取 contents
+    if (geminiBody.contents) {
+      geminiBody.contents.forEach((item: { role: string; parts: { text?: string }[] }) => {
+        const content = item.parts
+          .map((p: { text?: string }) => p.text || '')
+          .join('\n');
+        const role = item.role === 'model' ? 'assistant' : item.role;
+        messages.push({ role, content });
+      });
+    }
+
+    const openaiBody: ChatCompletionRequest = {
+      model: model.forwardModelName || model.id,
+      messages,
+      stream: false,
+      temperature: geminiBody.generationConfig?.temperature,
+      top_p: geminiBody.generationConfig?.topP,
+      max_tokens: geminiBody.generationConfig?.maxOutputTokens,
+    };
+
+    console.log(`[Gemini Forwarder] 转换为 OpenAI 格式，转发到 ${apiType} API`);
+
+    // 2. 使用现有的转发函数
+    const result = await forwardChatRequest(model, openaiBody);
+
+    if (!result.success) {
+      return result;
+    }
+
+    // 3. 将 OpenAI 响应转换回 Gemini 格式
+    const openaiResponse = result.response;
+    const geminiResponse = {
+      candidates: [{
+        content: {
+          parts: [{ text: openaiResponse.choices?.[0]?.message?.content || '' }],
+          role: 'model',
+        },
+        finishReason: openaiResponse.choices?.[0]?.finish_reason === 'stop' ? 'STOP' : 'MAX_TOKENS',
+      }],
+      usageMetadata: {
+        promptTokenCount: openaiResponse.usage?.prompt_tokens || 0,
+        candidatesTokenCount: openaiResponse.usage?.completion_tokens || 0,
+        totalTokenCount: openaiResponse.usage?.total_tokens || 0,
+      },
+    };
+
+    return { success: true, response: geminiResponse };
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+    console.error('[Gemini Forwarder] 转发失败:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * 转发 Gemini 格式的请求（流式）
+ * 根据 api_type 决定如何转发和转换格式
+ */
+export async function forwardGeminiStreamRequest(
+  model: Model,
+  geminiBody: any,
+  res: Response
+): Promise<void> {
+  if (!model.api_base_url || !model.api_key) {
+    throw new Error('Model not configured for forwarding');
+  }
+
+  const apiType = model.api_type || 'google';
+
+  // 设置流式响应头（Gemini 格式）
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  // 如果目标是 Google/Gemini API，直接转发
+  if (apiType === 'google') {
+    const forwardModel = model.forwardModelName || model.id;
+    const url = `${model.api_base_url}/v1beta/models/${forwardModel}:streamGenerateContent?key=${model.api_key}&alt=sse`;
+
+    console.log(`[Gemini Forwarder] 流式转发到 Gemini API: ${url}`);
+
+    const response = await axios.post(url, geminiBody, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 120000,
+      responseType: 'stream',
+    });
+
+    // 直接透传流数据
+    response.data.on('data', (chunk: Buffer) => {
+      res.write(chunk);
+    });
+
+    response.data.on('end', () => {
+      res.end();
+    });
+
+    response.data.on('error', (err: Error) => {
+      console.error('[Gemini Forwarder] 流式转发错误:', err.message);
+      res.end();
+    });
+    return;
+  }
+
+  // 如果目标是其他 API，需要转换格式
+  // 1. 将 Gemini 格式转换为 OpenAI 格式
+  const messages: ChatCompletionRequest['messages'] = [];
+
+  if (geminiBody.systemInstruction?.parts) {
+    const systemContent = geminiBody.systemInstruction.parts
+      .map((p: { text?: string }) => p.text || '')
+      .join('\n');
+    if (systemContent) {
+      messages.push({ role: 'system', content: systemContent });
+    }
+  }
+
+  if (geminiBody.contents) {
+    geminiBody.contents.forEach((item: { role: string; parts: { text?: string }[] }) => {
+      const content = item.parts
+        .map((p: { text?: string }) => p.text || '')
+        .join('\n');
+      const role = item.role === 'model' ? 'assistant' : item.role;
+      messages.push({ role, content });
+    });
+  }
+
+  const openaiBody: ChatCompletionRequest = {
+    model: model.forwardModelName || model.id,
+    messages,
+    stream: true,
+    temperature: geminiBody.generationConfig?.temperature,
+    top_p: geminiBody.generationConfig?.topP,
+    max_tokens: geminiBody.generationConfig?.maxOutputTokens,
+  };
+
+  console.log(`[Gemini Forwarder] 流式转换为 OpenAI 格式，转发到 ${apiType} API`);
+
+  // 2. 转发 OpenAI 格式请求
+  let url = model.api_base_url;
+  if (!url.includes('/chat/completions')) {
+    url = `${url}/chat/completions`;
+  }
+
+  const response = await axios.post(url, openaiBody, {
+    headers: {
+      'Authorization': `Bearer ${model.api_key}`,
+      'Content-Type': 'application/json',
+    },
+    timeout: 120000,
+    responseType: 'stream',
+  });
+
+  // 3. 将 OpenAI 流式响应转换为 Gemini 格式
+  let buffer = '';
+  
+  response.data.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') {
+          res.write('data: [DONE]\n\n');
+          continue;
+        }
+
+        try {
+          const openaiChunk = JSON.parse(data);
+          const content = openaiChunk.choices?.[0]?.delta?.content || '';
+          
+          if (content) {
+            // 转换为 Gemini 格式
+            const geminiChunk = {
+              candidates: [{
+                content: {
+                  parts: [{ text: content }],
+                  role: 'model',
+                },
+                finishReason: openaiChunk.choices?.[0]?.finish_reason ? 'STOP' : null,
+              }],
+            };
+            res.write(`data: ${JSON.stringify(geminiChunk)}\n\n`);
+          }
+        } catch {
+          // 忽略解析错误
+        }
+      }
+    }
+  });
+
+  response.data.on('end', () => {
+    res.write('data: [DONE]\n\n');
+    res.end();
+  });
+
+  response.data.on('error', (err: Error) => {
+    console.error('[Gemini Forwarder] 流式转换错误:', err.message);
+    res.end();
+  });
 }

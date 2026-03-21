@@ -26,6 +26,22 @@ import type { Model } from '../../types.js';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../utils/currency';
 
+// 根据模型类型获取支持的端点
+function getSupportedEndpoints(modelType?: string, modelId?: string): string[] {
+  const model = modelId || '{model_id}';
+  const endpoints: Record<string, string[]> = {
+    text: ['/v1/chat/completions', '/v1/completions', '/v1/messages'],
+    image: ['/v1/images/generations', '/v1/images/edits', `/v1beta/models/${model}:generateContent`],
+    embedding: ['/v1/embeddings', `/v1beta/models/${model}:embedContent`],
+    video: ['/v1/videos/generations', `/v1beta/models/${model}:generateContent`],
+    tts: [],
+    stt: [],
+    rerank: ['/v1/rerank'],
+    responses: ['/v1/responses'],
+  };
+  return endpoints[modelType || 'text'] || endpoints.text;
+}
+
 interface ModelMarketplaceProps {
   models: Model[];
   onSelectModel?: (model: Model) => void;
@@ -51,7 +67,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
 
   // 获取所有分类
   const categories = useMemo(() => {
-    const unique = new Set(models.map(m => m.category || 'other'));
+    const unique = new Set(models.map(m => m.type || 'text'));
     return Array.from(unique).sort();
   }, [models]);
 
@@ -80,7 +96,7 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
       }
 
       // 分类过滤
-      if (selectedCategory !== 'all' && (model.category || 'other') !== selectedCategory) {
+      if (selectedCategory !== 'all' && (model.type || 'text') !== selectedCategory) {
         return false;
       }
 
@@ -283,6 +299,30 @@ export function ModelMarketplace({ models, onSelectModel }: ModelMarketplaceProp
                     </Box>
                   </>
                 )}
+
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    {t('models.details.endpoints', 'Supported Endpoints')}
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {getSupportedEndpoints(selectedModel.type, selectedModel.id).map((endpoint) => (
+                      <Typography
+                        key={endpoint}
+                        variant="body2"
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontSize: '0.85rem',
+                          p: 0.75,
+                          bgcolor: 'action.hover',
+                          borderRadius: 0.5,
+                        }}
+                      >
+                        {endpoint}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
 
                 {selectedModel.context_length && (
                   <>

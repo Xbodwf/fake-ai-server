@@ -17,9 +17,17 @@ i18n
       escapeValue: false,
     },
     detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
+      order: ['localStorage', 'sessionStorage', 'navigator'],
+      caches: ['localStorage', 'sessionStorage'],
+      // 规范化语言代码，将 'zh-CN', 'zh-Hans' 等转换为 'zh'
+      lookupLocalStorage: 'i18nextLng',
+      lookupSessionStorage: 'i18nextLng',
     },
+    // 支持语言列表
+    supportedLngs: ['en', 'zh'],
+    // 非精确匹配时的回退规则
+    nonExplicitSupportedLngs: true,
   });
 
 export default i18n;
+

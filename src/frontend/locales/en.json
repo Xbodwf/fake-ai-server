@@ -34,7 +34,8 @@
     "enabled": "Enabled",
     "confirm": "Confirm",
     "output": "Output",
-    "currency": "🔮"
+    "currency": "🔮",
+    "copy": "Copy"
   },
   "auth": {
     "login": "Login",
@@ -258,7 +259,16 @@
     "newPassword": "New Password",
     "confirmNewPassword": "Confirm New Password",
     "profileUpdated": "Profile updated successfully",
-    "passwordChanged": "Password changed successfully"
+    "passwordChanged": "Password changed successfully",
+    "uidSettings": "UID Settings",
+    "uidDescription": "Your unique identifier for the platform. Once set, it cannot be changed.",
+    "uid": "UID",
+    "uidPlaceholder": "e.g., john_doe",
+    "uidHelper": "Only letters, numbers, and underscores allowed",
+    "uidRequired": "UID is required",
+    "uidSetSuccess": "UID set successfully",
+    "setUid": "Set UID",
+    "uidImmutable": "Your UID is permanent and cannot be changed after being set"
   },
   "apiKeys": {
     "title": "API Keys",
@@ -388,7 +398,32 @@
     "fieldValue": "Field Value",
     "documentation": "Documentation",
     "sandboxDocumentation": "Sandbox API Documentation",
-    "commaSeparatedTags": "Comma-separated tags"
+    "commaSeparatedTags": "Comma-separated tags",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "publishConfirm": "Publish Action",
+    "publishMessage": "Publishing this action will make it available to all users in the Action Marketplace. The action will be named: @{{uid}}/{{name}}",
+    "publishNote": "Once published, other users can discover and use your action. You can unpublish it anytime.",
+    "publishSuccess": "Action published as {{name}}",
+    "unpublishSuccess": "Action unpublished"
+  },
+  "actionMarketplace": {
+    "title": "Action Marketplace",
+    "description": "Discover and use public actions created by the community",
+    "search": "Search actions...",
+    "noResults": "No actions found matching your search",
+    "empty": "No public actions available yet",
+    "viewDetails": "View Details",
+    "actionId": "Action ID",
+    "tags": "Tags",
+    "stats": "Statistics",
+    "usageCount": "Used {{count}} times",
+    "select": "Select",
+    "overview": "Overview",
+    "parameters": "Parameters",
+    "code": "Code",
+    "description": "Description",
+    "noParameters": "No parameters required"
   },
   "errors": {
     "failedToLoad": "Failed to load",

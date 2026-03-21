@@ -17,6 +17,8 @@ import {
   CardContent,
   Chip,
   Alert,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { Search, Copy, Check } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
@@ -30,6 +32,83 @@ interface ActionMarketplaceProps {
   onSelectAction?: (action: Action) => void;
 }
 
+// 从 metadata 中提取参数定义
+function extractMetadataFromCode(code: string): any {
+  try {
+    // 匹配 export const metadata = { ... };
+    const metadataMatch = code.match(/export\s+const\s+metadata\s*=\s*(\{[\s\S]*?\n\});/);
+    if (metadataMatch) {
+      const metadataStr = metadataMatch[1];
+      // 使用 Function 构造器安全地解析对象
+      const metadataObj = new Function(`return ${metadataStr}`)();
+      return metadataObj;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to extract metadata:', error);
+    return null;
+  }
+}
+
+// 从 metadata 或 JSDoc 注释中提取参数定义
+function extractParametersFromCode(code: string): Array<{
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  required: boolean;
+  description?: string;
+}> {
+  // 首先尝试从 metadata.inputs 中提取
+  const metadata = extractMetadataFromCode(code);
+  if (metadata?.inputs && typeof metadata.inputs === 'object') {
+    return Object.entries(metadata.inputs).map(([name, input]: [string, any]) => ({
+      name,
+      type: input.type || 'string',
+      required: input.required ?? true,
+      description: input.description,
+    }));
+  }
+
+  // 回退：从 JSDoc 注释中的 @param 标签提取
+  const params: Array<{
+    name: string;
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+    required: boolean;
+    description?: string;
+  }> = [];
+
+  const paramRegex = /@param\s+\{(\w+)\}\s+(\w+)\s*-?\s*(.*?)(?=@|\*\/|$)/gs;
+  let match;
+  while ((match = paramRegex.exec(code)) !== null) {
+    const type = match[1].toLowerCase() as 'string' | 'number' | 'boolean' | 'object' | 'array';
+    const name = match[2];
+    const description = match[3].trim();
+    params.push({
+      name,
+      type: ['string', 'number', 'boolean', 'object', 'array'].includes(type) ? type : 'string',
+      required: !description.includes('optional'),
+      description: description || undefined,
+    });
+  }
+
+  return params;
+}
+
+// 从 metadata 或代码中提取完整信息
+function extractActionInfo(code: string): {
+  name?: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  category?: string;
+  tags?: string[];
+  inputs?: Record<string, any>;
+  outputs?: Record<string, any>;
+  schema?: Record<string, any>;
+  config?: Record<string, any>;
+} | null {
+  return extractMetadataFromCode(code);
+}
+
 export function ActionMarketplace({ onSelectAction }: ActionMarketplaceProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
@@ -41,6 +120,7 @@ export function ActionMarketplace({ onSelectAction }: ActionMarketplaceProps) {
   const [actions, setActions] = useState<Action[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [detailsTab, setDetailsTab] = useState(0);
 
   useEffect(() => {
     fetchPublicActions();
@@ -82,11 +162,15 @@ export function ActionMarketplace({ onSelectAction }: ActionMarketplaceProps) {
     setShowDetails(true);
   };
 
-  const handleCopyId = (id: string) => {
-    copyToClipboard(id);
-    setCopiedId(id);
-    setSnackbarOpen(true);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyId = async (id: string) => {
+    try {
+      await copyToClipboard(id);
+      setCopiedId(id);
+      setSnackbarOpen(true);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const handleConfirmSelect = () => {
@@ -168,7 +252,7 @@ export function ActionMarketplace({ onSelectAction }: ActionMarketplaceProps) {
                   >
                     <CardContent sx={{ flexGrow: 1 }}>
                       <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                        {action.name}
+                        {action.id}
                       </Typography>
 
                       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, minHeight: 40 }}>
@@ -228,90 +312,181 @@ export function ActionMarketplace({ onSelectAction }: ActionMarketplaceProps) {
       )}
 
       {/* 详情对话框 */}
-      <Dialog open={showDetails} onClose={() => setShowDetails(false)} maxWidth="sm" fullWidth>
+      <Dialog open={showDetails} onClose={() => { setShowDetails(false); setDetailsTab(0); }} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">{selectedAction?.name}</Typography>
+            <Typography variant="h6">{selectedAction?.id}</Typography>
           </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ pt: 2 }}>
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                {t('actionMarketplace.description', 'Description')}
-              </Typography>
-              <Typography variant="body2">{selectedAction?.description}</Typography>
-            </Box>
+        <Tabs value={detailsTab} onChange={(_, newValue) => setDetailsTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
+          <Tab label={t('actionMarketplace.overview', 'Overview')} />
+          <Tab label={t('actionMarketplace.parameters', 'Parameters')} />
+          <Tab label={t('actionMarketplace.code', 'Code')} />
+        </Tabs>
 
-            {selectedAction?.tags && selectedAction.tags.length > 0 && (
+        <DialogContent sx={{ pt: 2 }}>
+          {/* 概览标签页 */}
+          {detailsTab === 0 && (
+            <Stack spacing={2}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  {t('actionMarketplace.tags', 'Tags')}
+                  {t('actionMarketplace.description', 'Description')}
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {selectedAction.tags.map((tag) => (
-                    <Chip key={tag} label={tag} size="small" />
-                  ))}
-                </Box>
+                <Typography variant="body2">{selectedAction?.description}</Typography>
               </Box>
-            )}
 
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                {t('actionMarketplace.actionId', 'Action ID')}
-              </Typography>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  p: 1.5,
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <Typography
-                  variant="body2"
+              {selectedAction?.tags && selectedAction.tags.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    {t('actionMarketplace.tags', 'Tags')}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {selectedAction.tags.map((tag) => (
+                      <Chip key={tag} label={tag} size="small" />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  {t('actionMarketplace.actionId', 'Action ID')}
+                </Typography>
+                <Box
                   sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 1.5,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
                     fontFamily: 'monospace',
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    fontSize: '0.875rem',
                   }}
                 >
-                  {selectedAction?.id}
-                </Typography>
-                <Button
-                  size="small"
-                  onClick={() => selectedAction && handleCopyId(selectedAction.id)}
-                  startIcon={copiedId === selectedAction?.id ? <Check size={16} /> : <Copy size={16} />}
-                  sx={{ minWidth: 'auto' }}
-                >
-                  {copiedId === selectedAction?.id ? 'Copied' : 'Copy'}
-                </Button>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontFamily: 'monospace',
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {selectedAction?.id}
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={() => selectedAction && handleCopyId(selectedAction.id)}
+                    startIcon={copiedId === selectedAction?.id ? <Check size={16} /> : <Copy size={16} />}
+                    sx={{ minWidth: 'auto' }}
+                  >
+                    {copiedId === selectedAction?.id ? 'Copied' : 'Copy'}
+                  </Button>
+                </Box>
               </Box>
-            </Box>
 
-            {selectedAction?.usageCount !== undefined && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  {t('actionMarketplace.stats', 'Statistics')}
+              {selectedAction?.usageCount !== undefined && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    {t('actionMarketplace.stats', 'Statistics')}
+                  </Typography>
+                  <Typography variant="body2">
+                    {t('actionMarketplace.usageCount', 'Used {{count}} times', {
+                      count: selectedAction.usageCount,
+                    })}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          )}
+
+          {/* 参数标签页 */}
+          {detailsTab === 1 && (
+            <Stack spacing={2}>
+              {selectedAction && (selectedAction.parameters?.length || extractParametersFromCode(selectedAction.code).length) > 0 ? (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+                    {t('actionMarketplace.parameters', 'Parameters')}
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                    {(selectedAction.parameters || extractParametersFromCode(selectedAction.code)).map((param, idx) => (
+                      <Box
+                        key={idx}
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 2,
+                          bgcolor: 'background.paper',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            {param.name}
+                          </Typography>
+                          <Chip
+                            label={param.type}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+                        {param.description && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                            {param.description}
+                          </Typography>
+                        )}
+                        <Chip
+                          label={param.required ? 'Required' : 'Optional'}
+                          size="small"
+                          color={param.required ? 'error' : 'default'}
+                          variant="outlined"
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ) : (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('actionMarketplace.noParameters', 'No parameters required')}
                 </Typography>
-                <Typography variant="body2">
-                  {t('actionMarketplace.usageCount', 'Used {{count}} times', {
-                    count: selectedAction.usageCount,
-                  })}
-                </Typography>
-              </Box>
-            )}
-          </Stack>
+              )}
+            </Stack>
+          )}
+
+          {/* 代码标签页 */}
+          {detailsTab === 2 && (
+            <Box
+              sx={{
+                bgcolor: '#f5f5f5',
+                p: 2,
+                borderRadius: 1,
+                fontFamily: 'monospace',
+                fontSize: '0.85rem',
+                overflow: 'auto',
+                maxHeight: 400,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              <Typography
+                component="pre"
+                variant="body2"
+                sx={{
+                  fontFamily: 'monospace',
+                  margin: 0,
+                  color: '#333',
+                }}
+              >
+                {selectedAction?.code || 'No code available'}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setShowDetails(false)}>
+          <Button onClick={() => { setShowDetails(false); setDetailsTab(0); }}>
             {t('common.cancel', 'Cancel')}
           </Button>
           <Button variant="contained" onClick={handleConfirmSelect}>

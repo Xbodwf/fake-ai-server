@@ -24,7 +24,18 @@
     "user": "用户",
     "admin": "管理员",
     "never": "从未",
-    "currency": "🔮"
+    "currency": "🔮",
+    "copy": "复制",
+    "all": "全部",
+    "sortBy": "排序方式",
+    "order": "顺序",
+    "ascending": "升序",
+    "descending": "降序",
+    "copyUserId": "复制用户 ID",
+    "copied": "已复制",
+    "enabled": "启用",
+    "confirm": "确认",
+    "output": "输出"
   },
   "auth": {
     "login": "登录",
@@ -246,7 +257,16 @@
     "newPassword": "新密码",
     "confirmNewPassword": "确认新密码",
     "profileUpdated": "个人资料已更新",
-    "passwordChanged": "密码已修改"
+    "passwordChanged": "密码已修改",
+    "uidSettings": "UID 设置",
+    "uidDescription": "您在平台上的唯一标识符。设置后无法更改。",
+    "uid": "UID",
+    "uidPlaceholder": "例如：john_doe",
+    "uidHelper": "仅允许字母、数字和下划线",
+    "uidRequired": "UID 为必填项",
+    "uidSetSuccess": "UID 设置成功",
+    "setUid": "设置 UID",
+    "uidImmutable": "您的 UID 是永久的，设置后无法更改"
   },
   "apiKeys": {
     "title": "API Keys",
@@ -374,7 +394,32 @@
     "fieldValue": "字段值",
     "documentation": "文档",
     "sandboxDocumentation": "沙箱 API 文档",
-    "commaSeparatedTags": "用逗号分隔的标签"
+    "commaSeparatedTags": "用逗号分隔的标签",
+    "publish": "发布",
+    "unpublish": "取消发布",
+    "publishConfirm": "发布 Action",
+    "publishMessage": "发布此 Action 将使其在 Action 广场中对所有用户可用。该 Action 将被命名为：@{{uid}}/{{name}}",
+    "publishNote": "发布后，其他用户可以发现并使用您的 Action。您可以随时取消发布。",
+    "publishSuccess": "Action 已发布为 {{name}}",
+    "unpublishSuccess": "Action 已取消发布"
+  },
+  "actionMarketplace": {
+    "title": "Action 广场",
+    "description": "发现并使用社区创建的公开 Actions",
+    "search": "搜索 Actions...",
+    "noResults": "未找到匹配您搜索的 Actions",
+    "empty": "暂无公开 Actions",
+    "viewDetails": "查看详情",
+    "actionId": "Action ID",
+    "tags": "标签",
+    "stats": "统计信息",
+    "usageCount": "已使用 {{count}} 次",
+    "select": "选择",
+    "overview": "概览",
+    "parameters": "参数",
+    "code": "代码",
+    "description": "描述",
+    "noParameters": "无需参数"
   },
   "errors": {
     "failedToLoad": "加载失败",
