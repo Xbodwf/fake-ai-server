@@ -144,7 +144,11 @@ export async function loadModels(): Promise<Model[]> {
 }
 
 export function getModel(id: string): Model | undefined {
-  return modelsCache.find(m => m.id === id);
+  const model = modelsCache.find(m => m.id === id);
+  if (!model) {
+    console.log('[getModel] Model not found:', id, 'Available models:', modelsCache.map(m => m.id).join(', '));
+  }
+  return model;
 }
 
 export function getAllModels(): Model[] {
