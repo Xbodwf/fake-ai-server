@@ -1340,7 +1340,8 @@ function parseGeminiModelPath(path: string): { modelId: string; action: string }
 // POST /v1beta/models/* - Gemini generateContent、streamGenerateContent 和 embedContent
 // 使用通配符路由支持模型 ID 包含特殊字符（如斜杠）
 app.post('/v1beta/models/*', async (req: Request, res: Response) => {
-  const path = req.originalUrl.split('?')[0]; // 移除查询参数
+  const rawPath = req.originalUrl.split('?')[0]; // 移除查询参数
+  const path = decodeURIComponent(rawPath); // 解码 URL 编码（如 %3A -> :）
   const parsed = parseGeminiModelPath(path);
 
   if (!parsed) {
