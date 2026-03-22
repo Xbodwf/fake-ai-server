@@ -1405,13 +1405,41 @@ app.get('/v1beta/models', (req: Request, res: Response) => {
 
 // GET /v1beta/models/:modelId(*) - Gemini model info (支持模型ID包含斜杠)
 app.get('/v1beta/models/:modelId(*)', (req: Request, res: Response) => {
-  const modelId = decodeURIComponent(req.params.modelId as string);
-  console.log('[Gemini GET] modelId from params:', modelId, 'originalUrl:', req.originalUrl);
-  const model = getModel(modelId);
+  const rawModelId = decodeURIComponent(req.params.modelId as string);
+  console.log('[Gemini GET] modelId from params:', rawModelId, 'originalUrl:', req.originalUrl);
+
+  // 检查是否带有操作后缀（如 :embedContent, :generateContent）
+  const actionMatch = rawModelId.match(/^(.+):(embedContent|generateContent|streamGenerateContent)$/);
+  if (actionMatch) {
+    const modelId = actionMatch[1];
+    const action = actionMatch[2];
+
+    // embedContent 必须用 POST
+    if (action === 'embedContent') {
+      return res.status(405).json({
+        error: {
+          code: 405,
+          message: `Method GET not allowed for ${action}. Use POST /v1beta/models/${modelId}:${action}`,
+          status: 'METHOD_NOT_ALLOWED'
+        }
+      });
+    }
+
+    // generateContent/streamGenerateContent 也需要 POST
+    return res.status(405).json({
+      error: {
+        code: 405,
+        message: `Method GET not allowed for ${action}. Use POST /v1beta/models/${modelId}:${action}`,
+        status: 'METHOD_NOT_ALLOWED'
+      }
+    });
+  }
+
+  const model = getModel(rawModelId);
 
   if (!model) {
     return res.status(404).json({
-      error: { code: 404, message: `Model ${modelId} not found`, status: 'NOT_FOUND' }
+      error: { code: 404, message: `Model ${rawModelId} not found`, status: 'NOT_FOUND' }
     });
   }
 
