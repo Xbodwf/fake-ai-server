@@ -7,7 +7,7 @@ import { hasReverseClients, broadcastRequestToReverseClients } from '../../../re
 import { getModel, validateApiKey, getUserById, updateUser, createUsageRecord, getAllModels, getActionByName, getAllApiKeys } from '../../../storage.js';
 import { calculateCost, calculateTokens } from '../../../billing.js';
 import { executeAction } from '../../../actions/executor.js';
-import { forwardChatRequest, forwardStreamRequest } from '../../../forwarder.js';
+import { forwardChatRequest, forwardStreamRequest, isModelForwardingConfigured } from '../../../forwarder.js';
 import { getContentString, extractApiKey } from '../utils.js';
 
 const router: Router = Router();
@@ -297,9 +297,9 @@ async function handleChatRequest(
   }
 
   const model = getModel(body.model);
-  const hasForwarding = model && model.api_base_url && model.api_key;
+  const hasForwarding = model ? isModelForwardingConfigured(model) : false;
 
-  if (hasForwarding) {
+  if (hasForwarding && model) {
     console.log(`[Forwarder] 转发模式：${model.api_type || 'openai'} API`);
 
     if (isStream) {

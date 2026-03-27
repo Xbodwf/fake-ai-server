@@ -69,6 +69,26 @@ function formatContextLength(value?: number): string {
   return value.toString();
 }
 
+// 获取模型名称的首字母缩写
+function getModelInitials(modelId: string): string {
+  // 移除常见前缀和特殊字符
+  const cleanedId = modelId.replace(/^(gpt-|claude-|gemini-|deepseek-|llama-)/i, '');
+  
+  // 分割单词
+  const words = cleanedId.split(/[-_]/);
+  
+  if (words.length >= 2) {
+    // 取前两个单词的首字母
+    return words.slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
+  } else if (cleanedId.length >= 2) {
+    // 取前两个字符
+    return cleanedId.substring(0, 2).toUpperCase();
+  } else {
+    // 返回单个字符
+    return cleanedId.charAt(0).toUpperCase();
+  }
+}
+
 // 解析用户输入的上下文大小
 function parseContextLength(value: string): number {
   const trimmed = value.trim().toUpperCase();
@@ -79,6 +99,48 @@ function parseContextLength(value: string): number {
     return Math.round(parseFloat(trimmed) * 1000);
   }
   return parseInt(trimmed) || 0;
+}
+
+type ApiType = 'openai' | 'anthropic' | 'google' | 'azure' | 'custom';
+type ApiTemplateKey = 'chat' | 'embeddings' | 'rerank' | 'geminiGenerateContent' | 'geminiStreamGenerateContent' | 'geminiEmbedContent';
+
+const API_TYPE_TO_TEMPLATE_KEY: Record<ApiType, ApiTemplateKey> = {
+ openai: 'chat',
+ anthropic: 'chat',
+ azure: 'chat',
+ custom: 'chat',
+ google: 'geminiGenerateContent',
+};
+
+function getTemplateKeyByApiType(apiType: ApiType): ApiTemplateKey {
+ return API_TYPE_TO_TEMPLATE_KEY[apiType] || 'chat';
+}
+
+function getTemplateValueByApiType(
+ apiType: ApiType,
+ templates: Partial<Record<ApiTemplateKey, string>> | undefined,
+ fallback: string = ''
+): string {
+ const key = getTemplateKeyByApiType(apiType);
+ return templates?.[key] || fallback;
+}
+
+function getApiTemplateLabelByType(apiType: ApiType): string {
+ switch (apiType) {
+ case 'google':
+ return 'Gemini Generate URL Template';
+ default:
+ return 'URL Template';
+ }
+}
+
+function getApiTemplatePlaceholderByType(apiType: ApiType): string {
+ switch (apiType) {
+ case 'google':
+ return '{baseUrl}/v1beta/models/{forwardModel}:generateContent?key={apiKey}';
+ default:
+ return '{baseUrl}/chat/completions';
+ }
 }
 
 interface FormData {
@@ -96,8 +158,16 @@ interface FormData {
   pricing_cache_read: number;
   api_key: string;
   api_base_url: string;
-  api_type: 'openai' | 'anthropic' | 'google' | 'azure' | 'custom';
+  api_type: ApiType;
   forwardModelName: string;       // 转发时使用的模型名称
+  api_url_templates: {
+    chat: string;
+    embeddings: string;
+    rerank: string;
+    geminiGenerateContent: string;
+    geminiStreamGenerateContent: string;
+    geminiEmbedContent: string;
+  };
   supported_features: string;
   icon: string;
   allowManualReply: boolean;      // 是否允许人工回复
@@ -126,6 +196,14 @@ const defaultFormData: FormData = {
   api_base_url: '',
   api_type: 'openai',
   forwardModelName: '',
+  api_url_templates: {
+    chat: '',
+    embeddings: '',
+    rerank: '',
+    geminiGenerateContent: '',
+    geminiStreamGenerateContent: '',
+    geminiEmbedContent: '',
+  },
   supported_features: '',
   icon: '',
   allowManualReply: false,
@@ -233,9 +311,17 @@ export default function ModelManager() {
         pricing_per_request: model.pricing?.perRequest || 0,
         pricing_cache_read: model.pricing?.cacheRead || 0,
         api_key: model.api_key || '',
-        api_base_url: model.api_base_url || '',
+        api_base_url: getTemplateValueByApiType((model.api_type || 'openai') as ApiType, model.api_url_templates, model.api_base_url || ''),
         api_type: model.api_type || 'openai',
         forwardModelName: model.forwardModelName || '',
+        api_url_templates: {
+          chat: model.api_url_templates?.chat || '',
+          embeddings: model.api_url_templates?.embeddings || '',
+          rerank: model.api_url_templates?.rerank || '',
+          geminiGenerateContent: model.api_url_templates?.geminiGenerateContent || '',
+          geminiStreamGenerateContent: model.api_url_templates?.geminiStreamGenerateContent || '',
+          geminiEmbedContent: model.api_url_templates?.geminiEmbedContent || '',
+        },
         supported_features: model.supported_features?.join(', ') || '',
         icon: model.icon || '',
         allowManualReply: model.allowManualReply || false,
@@ -261,6 +347,19 @@ export default function ModelManager() {
   const handleSave = async () => {
     if (!formData.id.trim()) return;
 
+    const templateKey = getTemplateKeyByApiType(formData.api_type);
+    const templateValue = formData.api_base_url.trim();
+
+    const mergedTemplates = {
+      ...formData.api_url_templates,
+      [templateKey]: templateValue,
+    };
+
+    const apiUrlTemplateEntries = Object.entries(mergedTemplates)
+      .map(([key, value]) => [key, value.trim()] as const)
+      .filter(([, value]) => value.length > 0);
+    const api_url_templates = apiUrlTemplateEntries.length > 0 ? Object.fromEntries(apiUrlTemplateEntries) : undefined;
+
     const modelData = {
       id: formData.id,
       owned_by: formData.owned_by,
@@ -281,6 +380,7 @@ export default function ModelManager() {
       api_base_url: formData.api_base_url || undefined,
       api_type: formData.api_type || undefined,
       forwardModelName: formData.forwardModelName || undefined,
+      ...(api_url_templates ? { api_url_templates } : {}),
       supported_features: formData.supported_features ? formData.supported_features.split(',').map(s => s.trim()).filter(Boolean) : undefined,
       icon: formData.icon || undefined,
       allowManualReply: formData.allowManualReply,
@@ -645,7 +745,14 @@ export default function ModelManager() {
                   <Select
                     value={formData.api_type}
                     label={t('models.manager.apiType')}
-                    onChange={(e) => setFormData({ ...formData, api_type: e.target.value })}
+                    onChange={(e) => {
+                      const nextApiType = e.target.value as ApiType;
+                      setFormData({
+                        ...formData,
+                        api_type: nextApiType,
+                        api_base_url: getTemplateValueByApiType(nextApiType, formData.api_url_templates),
+                      });
+                    }}
                   >
                     <MenuItem value="openai">OpenAI</MenuItem>
                     <MenuItem value="anthropic">Anthropic (Claude)</MenuItem>
@@ -663,13 +770,13 @@ export default function ModelManager() {
                   size="small"
                 />
                 <TextField
-                  label={t('models.manager.apiBaseUrl')}
+                  label={getApiTemplateLabelByType(formData.api_type)}
                   fullWidth
                   value={formData.api_base_url}
                   onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
-                  placeholder="https://api.openai.com/v1"
+                  placeholder={getApiTemplatePlaceholderByType(formData.api_type)}
                   size="small"
-                  helperText={t('models.manager.apiBaseUrlHelper')}
+                  helperText="变量: {baseUrl} {model} {forwardModel} {apiKey}"
                 />
                 <TextField
                   label={t('models.manager.forwardModelName', '转发模型名称')}
@@ -836,13 +943,27 @@ export default function ModelManager() {
                   <TableCell>
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {model.icon && (
+                        {model.icon ? (
                           <Avatar 
                             src={model.icon} 
                             sx={{ width: 24, height: 24, borderRadius: 0.5 }}
                             variant="rounded"
                           >
                             <Image size={16} />
+                          </Avatar>
+                        ) : (
+                          <Avatar 
+                            sx={{ 
+                              width: 24, 
+                              height: 24, 
+                              borderRadius: 0.5,
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                            }}
+                            variant="rounded"
+                          >
+                            {getModelInitials(model.id)}
                           </Avatar>
                         )}
                         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
@@ -1127,6 +1248,27 @@ export default function ModelManager() {
               <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Key size={16} /> {t('models.manager.apiConfig')}
               </Typography>
+              <FormControl fullWidth>
+                <InputLabel>{t('models.manager.apiType')}</InputLabel>
+                <Select
+                  value={formData.api_type}
+                  label={t('models.manager.apiType')}
+                  onChange={(e) => {
+                    const nextApiType = e.target.value as ApiType;
+                    setFormData({
+                      ...formData,
+                      api_type: nextApiType,
+                      api_base_url: getTemplateValueByApiType(nextApiType, formData.api_url_templates),
+                    });
+                  }}
+                >
+                  <MenuItem value="openai">OpenAI</MenuItem>
+                  <MenuItem value="anthropic">Anthropic (Claude)</MenuItem>
+                  <MenuItem value="google">Google (Gemini)</MenuItem>
+                  <MenuItem value="azure">Azure OpenAI</MenuItem>
+                  <MenuItem value="custom">{t('models.manager.customApi')}</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 label={t('models.manager.apiKey')}
                 fullWidth
@@ -1135,11 +1277,12 @@ export default function ModelManager() {
                 placeholder="sk-..."
               />
               <TextField
-                label={t('models.manager.apiBaseUrl')}
+                label={getApiTemplateLabelByType(formData.api_type)}
                 fullWidth
                 value={formData.api_base_url}
                 onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
-                placeholder="https://api.openai.com/v1"
+                placeholder={getApiTemplatePlaceholderByType(formData.api_type)}
+                helperText="变量: {baseUrl} {model} {forwardModel} {apiKey}"
               />
               <TextField
                 label={t('models.manager.forwardModelName', '转发模型名称')}

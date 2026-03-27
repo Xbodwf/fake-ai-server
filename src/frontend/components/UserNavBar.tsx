@@ -15,7 +15,7 @@ import {
   ListItemText,
   Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, LogOut, Settings } from 'lucide-react';
+import { Menu as MenuIcon, LogOut, Settings as SettingsIcon, BookOpen } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -144,12 +144,28 @@ export function UserNavBar() {
                 <Typography variant="body2" sx={{ mr: 2 }}>
                   {user?.username}
                 </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => navigate('/docs')}
+                  sx={{ mr: 1 }}
+                  title={t('nav.docs')}
+                >
+                  <BookOpen size={18} />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => navigate('/settings')}
+                  sx={{ mr: 1 }}
+                  title={t('user.settings')}
+                >
+                  <SettingsIcon size={18} />
+                </IconButton>
                 {isAdmin && (
                   <Button
                     variant="outlined"
                     size="small"
                     color="secondary"
-                    startIcon={<Settings size={18} />}
+                    startIcon={<SettingsIcon size={18} />}
                     onClick={() => navigate('/console/dashboard')}
                   >
                     {t('userNav.adminConsole', '控制台')}

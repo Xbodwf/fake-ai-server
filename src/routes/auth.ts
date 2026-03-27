@@ -19,6 +19,26 @@ import { generateVerificationCode, sendVerificationEmail, storeVerificationCode,
 const router: Router = Router();
 
 /**
+ * 生成UID（用户唯一标识符）
+ * 基于用户名去除特殊字符，只保留字母、数字和下划线
+ * 确保UID唯一且不可修改
+ */
+function generateUID(username: string): string {
+  // 移除所有非字母、数字和下划线的字符，转为小写
+  const cleanUsername = username.toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_')
+    .replace(/_{2,}/g, '_')  // 将多个连续下划线替换为单个
+    .replace(/^_|_$/g, '');  // 移除开头和结尾的下划线
+
+  // 如果清理后为空，使用默认值
+  if (!cleanUsername) {
+    return `user_${Date.now()}`;
+  }
+
+  return cleanUsername;
+}
+
+/**
  * 发送验证码
  */
 router.post('/send-verification-code', async (req: Request, res: Response) => {
@@ -104,11 +124,7 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invite code has no remaining quota' });
     }
 
-    // 检查用户是否已存在
-    if (getUserByUsername(username)) {
-      return res.status(409).json({ error: 'Username already exists' });
-    }
-
+    // 检查邮箱是否已存在（用户名允许重复）
     if (getUserByEmail(email)) {
       return res.status(409).json({ error: 'Email already exists' });
     }
@@ -130,9 +146,22 @@ router.post('/register', async (req: Request, res: Response) => {
     const passwordHash = await hashPassword(password);
     const userInviteCode = generateInviteCode();
     
+    // 生成唯一UID
+    let uid = generateUID(username);
+    const { getUserByUid } = await import('../storage.js');
+    
+    // 如果UID已存在，添加后缀使其唯一
+    let suffix = 1;
+    let baseUid = uid;
+    while (getUserByUid(uid)) {
+      uid = `${baseUid}_${suffix}`;
+      suffix++;
+    }
+    
     const user = await createUser({
       username,
       email,
+      uid,  // 添加UID字段
       passwordHash,
       balance: 0,
       totalUsage: 0,
@@ -170,6 +199,7 @@ router.post('/register', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
+        uid: user.uid,  // 添加UID字段
         email: user.email,
         role: user.role,
         balance: user.balance,
@@ -188,19 +218,25 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 /**
- * 用户登录
+ * 用户登录（仅支持邮箱登录）
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Missing username or password' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' });
     }
 
-    const user = getUserByUsername(username);
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const user = getUserByEmail(email);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     if (!user.enabled) {
@@ -209,7 +245,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // 更新最后登录时间
@@ -228,6 +264,7 @@ router.post('/login', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
+        uid: user.uid,  // 添加UID字段
         email: user.email,
         role: user.role,
         balance: user.balance,
@@ -295,6 +332,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     res.json({
       id: user.id,
       username: user.username,
+      uid: user.uid,  // 添加UID字段
       email: user.email,
       role: user.role,
       balance: user.balance,

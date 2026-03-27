@@ -4,6 +4,7 @@ import axios from 'axios'
 import { CircularProgress, Box } from '@mui/material'
 import App from './App.tsx'
 import './i18n' // 初始化 i18n
+import './styles/markdown.css' // Markdown 样式
 
 // 引入字体
 import '@fontsource/lexend/400.css'

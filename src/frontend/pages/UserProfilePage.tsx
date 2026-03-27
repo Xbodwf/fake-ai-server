@@ -17,14 +17,15 @@ import {
 import { Copy, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { copyToClipboard } from '../utils/clipboard';
+import { useErrorHandler } from '../utils/errorHandler';
 import axios from 'axios';
 
 export function UserProfilePage() {
   const navigate = useNavigate();
   const { user, token, updateUser: updateAuthUser } = useAuth();
   const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
   const [email, setEmail] = useState('');
-  const [uid, setUid] = useState('');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,7 +40,6 @@ export function UserProfilePage() {
       return;
     }
     setEmail(user.email);
-    setUid(user.uid || '');
   }, [user, token, navigate]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -58,36 +58,8 @@ export function UserProfilePage() {
       updateAuthUser({ ...user!, email: response.data.email });
       setSuccess(t('user.profileUpdated'));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSetUid = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!uid.trim()) {
-      setError(t('user.uidRequired'));
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await axios.put(
-        '/api/user/uid',
-        { uid: uid.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      updateAuthUser({ ...user!, uid: response.data.uid });
-      setUid(response.data.uid);
-      setSuccess(t('user.uidSetSuccess'));
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to set UID');
+      const errorMessage = handleError(err, false);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -130,7 +102,8 @@ export function UserProfilePage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to change password');
+      const errorMessage = handleError(err, false);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -194,7 +167,7 @@ export function UserProfilePage() {
         </CardContent>
       </Card>
 
-      {/* UID 设置 */}
+      {/* UID 显示 */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
@@ -202,70 +175,39 @@ export function UserProfilePage() {
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            {t('user.uidDescription')}
+            {t('user.uidImmutable')}
           </Typography>
 
-          {user?.uid ? (
-            <Stack spacing={2}>
-              <Box
+          {user?.uid && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                p: 2,
+                bgcolor: 'action.hover',
+                borderRadius: 1,
+              }}
+            >
+              <Typography
+                variant="body1"
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  p: 2,
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                  flex: 1,
                 }}
               >
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    flex: 1,
-                  }}
-                >
-                  @{user.uid}
-                </Typography>
-                <Button
-                  size="small"
-                  onClick={handleCopyUid}
-                  startIcon={copiedUid ? <Check size={16} /> : <Copy size={16} />}
-                  sx={{ minWidth: 'auto' }}
-                >
-                  {copiedUid ? t('common.copied') : t('common.copy')}
-                </Button>
-              </Box>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('user.uidChangeCooldown', 'UID can be changed every 30 days')}
+                @{user.uid}
               </Typography>
-            </Stack>
-          ) : (
-            <form onSubmit={handleSetUid}>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label={t('user.uid')}
-                  placeholder={t('user.uidPlaceholder')}
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  disabled={loading}
-                  helperText={t('user.uidHelper')}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">@</InputAdornment>
-                    ),
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  type="submit"
-                  disabled={loading || !uid.trim()}
-                >
-                  {loading ? <CircularProgress size={24} /> : t('user.setUid')}
-                </Button>
-              </Stack>
-            </form>
+              <Button
+                size="small"
+                onClick={handleCopyUid}
+                startIcon={copiedUid ? <Check size={16} /> : <Copy size={16} />}
+                sx={{ minWidth: 'auto' }}
+              >
+                {copiedUid ? t('common.copied') : t('common.copy')}
+              </Button>
+            </Box>
           )}
         </CardContent>
       </Card>

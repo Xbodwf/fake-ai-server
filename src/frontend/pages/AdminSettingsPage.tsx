@@ -27,6 +27,7 @@ interface EmailSettings {
     publicKey: string;
     privateKey: string;
   };
+  supportEmail?: string;
 }
 
 export function AdminSettingsPage() {
@@ -45,6 +46,7 @@ export function AdminSettingsPage() {
       publicKey: '',
       privateKey: '',
     },
+    supportEmail: '',
   });
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export function AdminSettingsPage() {
           publicKey: '',
           privateKey: '',
         },
+        supportEmail: response.data.supportEmail || '',
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load settings');
@@ -218,11 +221,36 @@ export function AdminSettingsPage() {
 
             <Divider />
 
+            {/* 联系支持配置 */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {t('admin.supportEmailConfig', '联系支持配置')}
+              </Typography>
+              <TextField
+                fullWidth
+                label={t('admin.supportEmailLabel', '联系支持邮箱')}
+                type="email"
+                value={settings.supportEmail || ''}
+                onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+                helperText={t('admin.supportEmailHelper', '用于用户在遇到问题时联系支持团队')}
+                placeholder={t('admin.supportEmailPlaceholder', 'support@example.com')}
+              />
+            </Box>
+
+            <Divider />
+
             {/* 模板说明 */}
             <Box>
               <Typography variant="h6" sx={{ mb: 1 }}>
                 {t('admin.templateInstructions')}
               </Typography>
+              
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  {t('admin.templateImportant')}
+                </Typography>
+              </Alert>
+
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {t('admin.templateVariables')}
               </Typography>
@@ -236,7 +264,7 @@ export function AdminSettingsPage() {
                   overflow: 'auto',
                 }}
               >
-                {`{{to_email}} - 收件人邮箱
+                {`{{to_email}} - 收件人邮箱（必须在EmailJS模板的"To Email"字段中使用此变量）
 {{to_name}} - 收件人名称
 {{verification_code}} - 验证码`}
               </Box>

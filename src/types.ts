@@ -178,10 +178,9 @@ export interface ApiKey {
 // 用户定义
 export interface User {
   id: string;                      // UUID
-  username: string;                // 唯一用户名
+  username: string;                // 用户名（允许重复）
   email: string;                   // 唯一邮箱
-  uid?: string;                    // 用户UID（@username风格，唯一，仅允许字母数字下划线）
-  uidSetAt?: number;               // UID 设置时间（用于30天修改限制）
+  uid: string;                     // 用户UID（唯一且不可修改，基于用户名去特殊字符版本）
   passwordHash: string;            // bcrypt 哈希密码
 
   // 余额和使用
@@ -646,6 +645,8 @@ export interface SystemSettings {
     publicKey: string; // EmailJS Public Key
     privateKey: string; // EmailJS Private Key
   };
+  // 联系支持配置
+  supportEmail?: string; // 联系支持邮箱
 }
 
 // Rerank API Types

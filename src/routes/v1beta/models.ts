@@ -3,9 +3,9 @@ import type { Router as RouterType } from 'express';
 import type { ChatCompletionRequest, PendingRequest, Message, Model } from '../../types.js';
 import { addPendingRequest, removePendingRequest } from '../../requestStore.js';
 import { generateRequestId } from '../../responseBuilder.js';
-import { broadcastRequest } from '../../websocket.js';
+import { broadcastRequest, getConnectedClientsCount } from '../../websocket.js';
 import { getModel, getAllModels, getPublicAndUserActions, validateApiKey, getAllApiKeys } from '../../storage.js';
-import { getConnectedClientsCount } from '../../websocket.js';
+import { isModelForwardingConfigured } from '../../forwarder.js';
 
 const router: RouterType = Router();
 
@@ -200,7 +200,7 @@ async function handleGeminiRequest(
   };
 
   // 检查是否配置了转发
-  const hasForwarding = model && model.api_base_url && model.api_key;
+  const hasForwarding = model ? isModelForwardingConfigured(model) : false;
 
   if (hasForwarding) {
     // 配置了转发

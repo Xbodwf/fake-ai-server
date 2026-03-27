@@ -100,33 +100,38 @@ export function ServerProvider({ children }: { children: ReactNode }) {
  }, [fetchModels, token, user, authLoading]);
 
  const handleMessage = useCallback((msg: WSMessage) => {
- switch (msg.type) {
- case 'request': {
- const payload = msg.payload as {
- requestId: string;
- data: any;
- requestParams?: any;
- requestType?: 'chat' | 'image' | 'video';
- imageRequest?: any;
- videoRequest?: any;
- };
- setPendingRequests(prev => {
- const next = new Map(prev);
- next.set(payload.requestId, {
- requestId: payload.requestId,
- request: payload.data,
- isStream: payload.data.stream === true,
- createdAt: Date.now(),
- requestParams: payload.requestParams,
- requestType: payload.requestType || 'chat',
- imageRequest: payload.imageRequest,
- videoRequest: payload.videoRequest,
- });
- return next;
- });
- break;
- }
- case 'models_update': {
+  console.log('[WS Client] handleMessage - 消息类型:', msg.type, '载荷:', msg.payload);
+   
+   switch (msg.type) {
+     case 'request': {
+       const payload = msg.payload as {
+         requestId: string;
+         data: any;
+         requestParams?: any;
+         requestType?: 'chat' | 'image' | 'video';
+         imageRequest?: any;
+         videoRequest?: any;
+       };
+       
+       console.log('[WS Client] 处理请求消息:', payload.requestId, '模型:', payload.data?.model);
+       
+       setPendingRequests(prev => {
+         const next = new Map(prev);
+         next.set(payload.requestId, {
+           requestId: payload.requestId,
+           request: payload.data,
+           isStream: payload.data.stream === true,
+           createdAt: Date.now(),
+           requestParams: payload.requestParams,
+           requestType: payload.requestType || 'chat',
+           imageRequest: payload.imageRequest,
+           videoRequest: payload.videoRequest,
+         });
+         console.log('[WS Client] 已添加请求到列表，当前请求数:', next.size);
+         return next;
+       });
+       break;
+     } case 'models_update': {
  const payload = msg.payload as { models: Model[] };
  setModels(payload.models);
  break;
@@ -143,30 +148,44 @@ export function ServerProvider({ children }: { children: ReactNode }) {
  const connect = () => {
  if (!shouldReconnectRef.current) return;
 
- const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
- const wsUrl = `${protocol}//${location.host}`;
+ // 使用代理路径连接WebSocket
+ const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+ const wsUrl = `${protocol}//${window.location.host}/ws`;
+ 
+ console.log('[WS Client] 正在连接到 WebSocket (通过代理):', wsUrl);
+ console.log('[WS Client] 当前页面URL:', window.location.href);
+
  const socket = new WebSocket(wsUrl);
 
  socket.onopen = () => {
+ console.log('[WS Client] WebSocket 连接成功');
  setConnected(true);
  setWs(socket);
  };
 
- socket.onclose = () => {
+ socket.onclose = (event) => {
+ console.log('[WS Client] WebSocket 连接关闭，代码:', event.code, '原因:', event.reason);
  setConnected(false);
  setWs(null);
  //只有在需要重连时才重连
  if (shouldReconnectRef.current) {
+ console.log('[WS Client] 3秒后重新连接...');
  reconnectTimeoutRef.current = setTimeout(connect,3000);
  }
  };
 
+ socket.onerror = (error) => {
+ console.error('[WS Client] WebSocket 错误:', error);
+ };
+
  socket.onmessage = (event) => {
+ console.log('[WS Client] 收到消息:', event.data);
  try {
  const msg: WSMessage = JSON.parse(event.data);
+ console.log('[WS Client] 解析后的消息:', msg.type);
  handleMessage(msg);
  } catch (e) {
- console.error('Parse error:', e);
+ console.error('[WS Client] 解析消息失败:', e);
  }
  };
  };

@@ -12,17 +12,21 @@ import {
   Stack,
   AppBar,
   Toolbar,
+  IconButton,
 } from '@mui/material';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { BookOpen } from 'lucide-react';
+import { useErrorHandler } from '../utils/errorHandler';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
   const { t } = useTranslation();
-  const [username, setUsername] = useState('');
+  const { handleError } = useErrorHandler();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +45,7 @@ export function LoginPage() {
 
     try {
       const response = await axios.post('/api/auth/login', {
-        username,
+        email,
         password,
       });
 
@@ -51,7 +55,8 @@ export function LoginPage() {
       // 所有用户登录后都跳转到用户仪表板
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || t('auth.loginFailed'));
+      const errorMessage = handleError(err, false);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -73,7 +78,15 @@ export function LoginPage() {
           >
             Phantom Mock
           </Typography>
-          <Box sx={{ ml: 'auto' }}>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
+              size="small"
+              onClick={() => navigate('/docs')}
+              title={t('nav.docs')}
+              sx={{ mr: 1 }}
+            >
+              <BookOpen size={18} />
+            </IconButton>
             <LanguageSwitcher />
           </Box>
         </Toolbar>
@@ -98,10 +111,11 @@ export function LoginPage() {
               <Stack spacing={2}>
                 <TextField
                   fullWidth
-                  label={t('auth.username')}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  label={t('auth.email')}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
+                  placeholder={t('auth.emailPlaceholder', '请输入邮箱地址')}
                 />
                 <TextField
                   fullWidth

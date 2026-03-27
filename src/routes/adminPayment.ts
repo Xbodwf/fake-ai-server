@@ -15,6 +15,41 @@ export function createAdminPaymentRoutes(redeemCodeManager: RedeemCodeManager): 
   router.post('/redeem-codes', async (req: Request, res: Response) => {
     const { code, amount, description, expiresAt } = req.body;
 
+    // 批量生成模式
+    if (req.body.batch) {
+      const { count, prefix } = req.body;
+      if (!count || !prefix || !amount) {
+        return res.status(400).json({ error: 'Count, prefix and amount are required for batch creation' });
+      }
+
+      try {
+        const requests: RedeemCodeCreateRequest[] = [];
+        for (let i = 0; i < count; i++) {
+          const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+          requests.push({
+            code: `${prefix}${randomSuffix}`,
+            amount,
+            description,
+            expiresAt,
+          });
+        }
+
+        const codes = await redeemCodeManager.batchCreateCodes(requests);
+
+        res.status(201).json({
+          codes,
+          count: codes.length,
+        });
+      } catch (error: any) {
+        if (error.code === 11000) {
+          return res.status(409).json({ error: 'Redeem code already exists' });
+        }
+        res.status(500).json({ error: error.message });
+      }
+      return;
+    }
+
+    // 单个创建模式
     if (!code || !amount || amount <= 0) {
       return res.status(400).json({ error: 'Invalid parameters' });
     }

@@ -13,6 +13,26 @@ import { useTranslation } from 'react-i18next';
 import type { Model } from '../../types.js';
 import { formatCurrency } from '../utils/currency';
 
+// 获取模型名称的首字母缩写
+function getModelInitials(modelId: string): string {
+  // 移除常见前缀和特殊字符
+  const cleanedId = modelId.replace(/^(gpt-|claude-|gemini-|deepseek-|llama-)/i, '');
+  
+  // 分割单词
+  const words = cleanedId.split(/[-_]/);
+  
+  if (words.length >= 2) {
+    // 取前两个单词的首字母
+    return words.slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
+  } else if (cleanedId.length >= 2) {
+    // 取前两个字符
+    return cleanedId.substring(0, 2).toUpperCase();
+  } else {
+    // 返回单个字符
+    return cleanedId.charAt(0).toUpperCase();
+  }
+}
+
 interface ModelCardProps {
   model: Model;
   onSelect?: (model: Model) => void;
@@ -67,18 +87,19 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
               sx={{
                 width: 48,
                 height: 48,
-                borderRadius: 1,
-                backgroundColor: '#f5f5f5',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                color: 'text.secondary',
-                fontSize: '0.75rem',
-                fontWeight: 600,
+                color: '#ffffff',
+                fontSize: '1.2rem',
+                fontWeight: 700,
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
               }}
             >
-              {model.id.substring(0, 2).toUpperCase()}
+              {getModelInitials(model.id)}
             </Box>
           )}
           <Box sx={{ flex: 1 }}>

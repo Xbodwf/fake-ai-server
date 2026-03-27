@@ -17,6 +17,7 @@ import { UserRequestsPage } from './pages/UserRequestsPage';
 import { UserUsagePage } from './pages/UserUsagePage';
 import { UserBillingPage } from './pages/UserBillingPage';
 import { UserProfilePage } from './pages/UserProfilePage';
+import { UserSettingsPage } from './pages/UserSettingsPage';
 import { UserInvitationPage } from './pages/UserInvitationPage';
 import { ActionsPage } from './pages/ActionsPage';
 import { ActionEditorPage } from './pages/ActionEditorPage';
@@ -235,6 +236,16 @@ function AppContent() {
                 <ProtectedRoute>
                   <UserLayout>
                     <UserProfilePage />
+                  </UserLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <UserLayout>
+                    <UserSettingsPage />
                   </UserLayout>
                 </ProtectedRoute>
               }

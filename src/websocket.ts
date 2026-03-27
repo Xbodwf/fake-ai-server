@@ -6,9 +6,16 @@ let wss: WebSocketServer;
 const clients = new Set<WebSocket>();
 
 export function initWebSocket(server: import('http').Server) {
-  wss = new WebSocketServer({ server });
+  wss = new WebSocketServer({ 
+    server,
+    path: '/ws'  // 明确监听 /ws 路径
+  });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    console.log('[WS] 收到WebSocket连接请求');
+    console.log('[WS] 请求URL:', req.url);
+    console.log('[WS] 请求头:', req.headers);
+    
     clients.add(ws);
     console.log('[WS] 客户端已连接，当前连接数:', clients.size);
 
@@ -18,9 +25,11 @@ export function initWebSocket(server: import('http').Server) {
       payload: { message: '已连接到 Phantom Mock' }
     };
     ws.send(JSON.stringify(msg));
+    console.log('[WS] 已发送连接确认消息');
 
     // 发送当前待处理的请求
     const pending = getAllPendingRequests();
+    console.log('[WS] 当前待处理请求数:', pending.length);
     if (pending.length > 0) {
       pending.forEach((req) => {
         const reqMsg: WSMessage = {
@@ -31,24 +40,31 @@ export function initWebSocket(server: import('http').Server) {
           }
         };
         ws.send(JSON.stringify(reqMsg));
+        console.log('[WS] 已发送待处理请求:', req.requestId);
       });
     }
 
     ws.on('message', (data) => {
       try {
         const msg: WSMessage = JSON.parse(data.toString());
+        console.log('[WS] 收到客户端消息:', msg.type);
         handleClientMessage(ws, msg);
       } catch (e) {
         console.error('[WS] 解析消息失败:', e);
       }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
       clients.delete(ws);
-      console.log('[WS] 客户端已断开，当前连接数:', clients.size);
+      console.log('[WS] 客户端已断开，当前连接数:', clients.size, '代码:', code, '原因:', reason);
+    });
+
+    ws.on('error', (error) => {
+      console.error('[WS] WebSocket错误:', error);
     });
   });
 
+  console.log('[WS] WebSocket服务器已启动');
   return wss;
 }
 
@@ -107,13 +123,20 @@ export function broadcastRequest(req: PendingRequest) {
   };
   const data = JSON.stringify(msg);
 
+  let sentCount = 0;
   clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
+      try {
+        client.send(data);
+        sentCount++;
+      } catch (e) {
+        console.error('[WS] 发送消息失败:', e);
+      }
     }
   });
 
-  console.log('[WS] 已广播请求到', clients.size, '个客户端');
+  console.log('[WS] 已广播请求到', clients.size, '个客户端，实际发送', sentCount, '个');
+  console.log('[WS] 请求详情:', req.request.model, req.requestId);
 }
 
 export function getConnectedClientsCount(): number {

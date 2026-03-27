@@ -72,6 +72,28 @@ export class RedeemCodeManager {
   }
 
   /**
+   * 批量生成兑换码
+   */
+  async batchCreateCodes(requests: RedeemCodeCreateRequest[]): Promise<RedeemCode[]> {
+    const now = Date.now();
+    const codes: RedeemCode[] = requests.map(req => ({
+      code: req.code,
+      amount: req.amount,
+      description: req.description,
+      createdAt: now,
+      expiresAt: req.expiresAt,
+      status: 'active',
+    }));
+
+    const result = await this.collection.insertMany(codes as any);
+
+    return codes.map((code, index) => ({
+      ...code,
+      _id: result.insertedIds[index].toString(),
+    }));
+  }
+
+  /**
    * 验证并使用兑换码
    */
   async redeemCode(code: string, userId: string): Promise<{ success: boolean; amount?: number; error?: string }> {
@@ -133,8 +155,14 @@ export class RedeemCodeManager {
    * 删除兑换码
    */
   async deleteCode(id: string): Promise<boolean> {
-    const result = await this.collection.deleteOne({ _id: id });
-    return result.deletedCount > 0;
+    try {
+      const { ObjectId } = await import('mongodb');
+      const result = await this.collection.deleteOne({ _id: new ObjectId(id) } as any);
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error('Failed to delete redeem code:', error);
+      return false;
+    }
   }
 
   /**

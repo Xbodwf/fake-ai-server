@@ -81,7 +81,7 @@ export function standardizeErrorResponse(error: any, apiType: string = 'unknown'
 /**
  * 获取转发时使用的模型名称
  */
-function getForwardModelName(model: Model, requestedModel: string): string {
+export function getForwardModelName(model: Model, requestedModel: string): string {
   return model.forwardModelName || requestedModel;
 }
 
@@ -130,7 +130,7 @@ function applyUrlTemplate(
  case 'model':
  return encodeURIComponent(params.requestedModel);
  case 'forwardModel':
- return encodeURIComponent(params.forwardModel);
+ return params.forwardModel;
  case 'apiKey':
  return encodeURIComponent(params.apiKey);
  default:
@@ -163,7 +163,7 @@ function getEndpointTemplate(model: Model, endpoint: ForwardEndpoint): string | 
  }
 }
 
-function resolveForwardUrl(
+export function resolveForwardUrl(
  model: Model,
  endpoint: ForwardEndpoint,
  requestedModel: string,

@@ -331,7 +331,10 @@ export async function createUser(user: Omit<User, 'id'>): Promise<User> {
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-  const updated = await usersDB.updateUser(id, updates);
+  // 防止修改UID
+  const { uid, ...safeUpdates } = updates;
+  
+  const updated = await usersDB.updateUser(id, safeUpdates);
   if (updated) {
     const index = usersCache.findIndex(u => u.id === id);
     if (index !== -1) {

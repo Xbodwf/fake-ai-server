@@ -6,7 +6,7 @@ import { generateRequestId } from '../../responseBuilder.js';
 import { broadcastRequest, getConnectedClientsCount } from '../../websocket.js';
 import { hasReverseClients, broadcastRequestToReverseClients } from '../../reverseWebSocket.js';
 import { getModel } from '../../storage.js';
-import { forwardChatRequest } from '../../forwarder.js';
+import { forwardChatRequest, isModelForwardingConfigured } from '../../forwarder.js';
 
 const router: RouterType = Router();
 
@@ -149,7 +149,7 @@ router.post('/', async (req: Request, res: Response) => {
  };
 
  const model = getModel(body.model);
- const hasForwarding = !!(model && model.api_base_url && model.api_key);
+ const hasForwarding = !!(model && isModelForwardingConfigured(model));
 
  const requestParams = {
  temperature: body.temperature,

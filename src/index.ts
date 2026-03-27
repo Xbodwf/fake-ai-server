@@ -367,14 +367,18 @@ async function start() {
   const PORT = process.env.PORT || serverConfig.port;
 
   server.listen(PORT, async () => {
-    initWebSocket(server);
-    initReverseWebSocket(server, '/reverse-ws');
-    console.log('========================================');
-    console.log('Phantom Mock 已启动');
-    console.log('端口:', PORT);
-    console.log('前端地址:', `http://localhost:${PORT}`);
-    console.log('反向 WebSocket 地址:', `ws://localhost:${PORT}/reverse-ws`);
-    console.log('========================================');
+  console.log('========================================');
+  console.log('HTTP服务器正在启动，端口:', PORT);
+  
+  initWebSocket(server);
+  initReverseWebSocket(server, '/reverse-ws');
+  
+  console.log('========================================');
+  console.log('Phantom Mock 已启动');
+  console.log('端口:', PORT);
+  console.log('前端地址:', `http://localhost:${PORT}`);
+  console.log('反向 WebSocket 地址:', `ws://localhost:${PORT}/reverse-ws`);
+  console.log('========================================');
 
     // 启动 TCP 服务器（如果启用）
     if ((settings as any).tcpServerEnabled) {

@@ -12,16 +12,20 @@ import {
   Stack,
   AppBar,
   Toolbar,
+  IconButton,
 } from '@mui/material';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { BookOpen } from 'lucide-react';
+import { useErrorHandler } from '../utils/errorHandler';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { handleError } = useErrorHandler();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,7 +80,8 @@ export function RegisterPage() {
       setSuccess(t('auth.codeSentSuccess'));
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.error || t('auth.sendCodeFailed'));
+      const errorMessage = handleError(err, false);
+      setError(errorMessage);
     } finally {
       setSendingCode(false);
     }
@@ -120,7 +125,8 @@ export function RegisterPage() {
       // 重定向到仪表板
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || t('auth.registerFailed'));
+      const errorMessage = handleError(err, false);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -142,7 +148,15 @@ export function RegisterPage() {
           >
             Phantom Mock
           </Typography>
-          <Box sx={{ ml: 'auto' }}>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
+              size="small"
+              onClick={() => navigate('/docs')}
+              title={t('nav.docs')}
+              sx={{ mr: 1 }}
+            >
+              <BookOpen size={18} />
+            </IconButton>
             <LanguageSwitcher />
           </Box>
         </Toolbar>

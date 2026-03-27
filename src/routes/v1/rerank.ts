@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
+import axios from 'axios';
 import type { RerankRequest, RerankResponse } from '../../types.js';
 import { getModel, validateApiKey, getUserById, updateUser, createUsageRecord } from '../../storage.js';
 import { calculateCost } from '../../billing.js';
 import { generateRequestId } from '../../responseBuilder.js';
 import { extractApiKey } from './utils.js';
-import axios from 'axios';
+import { standardizeErrorResponse, isModelForwardingConfigured, resolveForwardUrl, getForwardModelName } from '../../forwarder.js';
 
 const router: Router = Router();
 
@@ -71,18 +72,14 @@ router.post('/', async (req: Request, res: Response) => {
   console.log('========================================\n');
 
   // 检查是否配置了转发
-  const hasForwarding = model && model.api_base_url && model.api_key;
+  const hasForwarding = isModelForwardingConfigured(model);
 
   if (hasForwarding) {
     try {
       // 构建转发请求
-      const forwardModel = model.forwardModelName || body.model;
-      let url = model.api_base_url!;
+      const forwardModel = getForwardModelName(model, body.model);
+      const url = resolveForwardUrl(model, 'rerank', body.model, forwardModel);
 
-      // 智能处理 URL
-      if (!url.includes('/rerank')) {
-        url = `${url}/rerank`;
-      }
 
       const forwardBody = {
         model: forwardModel,
@@ -152,13 +149,8 @@ router.post('/', async (req: Request, res: Response) => {
       return res.json(rerankResponse);
     } catch (error: any) {
       console.error('[Forwarder] Rerank 转发失败:', error.message);
-      return res.status(502).json({
-        error: {
-          message: `转发失败: ${error.message}`,
-          type: 'forwarding_error',
-          code: 'forwarding_failed',
-        }
-      });
+      const standardizedError = standardizeErrorResponse(error, model.api_type || 'openai');
+      return res.status(502).json(standardizedError);
     }
   }
 

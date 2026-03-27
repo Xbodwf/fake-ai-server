@@ -17,10 +17,12 @@ import {
   useTheme,
   useMediaQuery,
   IconButton,
+  Button,
 } from '@mui/material';
 import { Menu as MenuIcon, X as CloseIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { ExternalLink } from 'lucide-react';
 
 const DRAWER_WIDTH = 280;
 
@@ -108,6 +110,52 @@ function DocContent({ sectionId, baseUrl, t }: { sectionId: string; baseUrl: str
             <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
               {t('docs.welcome')}
             </Typography>
+            
+            {/* 第三方文档链接 */}
+            <Box sx={{ mb: 4, p: 2, bgcolor: 'rgba(102, 126, 234, 0.1)', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ExternalLink size={20} />
+                {t('docs.externalDocumentation')}
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                {t('docs.externalDocsDescription')}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ExternalLink size={14} />}
+                  onClick={() => window.open('https://www.feishu.cn/', '_blank')}
+                >
+                  Feishu Docs
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ExternalLink size={14} />}
+                  onClick={() => window.open('https://docs.github.com/', '_blank')}
+                >
+                  GitHub Docs
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ExternalLink size={14} />}
+                  onClick={() => window.open('https://platform.openai.com/docs/api-reference', '_blank')}
+                >
+                  OpenAI API Docs
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ExternalLink size={14} />}
+                  onClick={() => window.open('https://docs.anthropic.com/en/api/getting-started', '_blank')}
+                >
+                  Anthropic API Docs
+                </Button>
+              </Box>
+            </Box>
+
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               {t('docs.baseUrl')}
             </Typography>
@@ -454,7 +502,7 @@ export function DocsPage() {
           >
             Phantom Mock
           </Typography>
-          <Box sx={{ ml: 'auto' }}>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
             <LanguageSwitcher />
           </Box>
         </Toolbar>

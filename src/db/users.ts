@@ -10,9 +10,10 @@ export async function createUserIndexes(): Promise<void> {
   const db = getDB();
   const collection = db.collection(COLLECTION_NAME);
 
-  // 创建唯一索引
-  await collection.createIndex({ username: 1 }, { unique: true });
-  await collection.createIndex({ email: 1 }, { unique: true });
+  // 创建索引（允许用户名重复，但邮箱和UID必须唯一）
+  await collection.createIndex({ username: 1 }); // 非唯一索引，允许重名
+  await collection.createIndex({ email: 1 }, { unique: true }); // 邮箱唯一
+  await collection.createIndex({ uid: 1 }, { unique: true }); // UID唯一且不可修改
   await collection.createIndex({ inviteCode: 1 }, { sparse: true, unique: true });
 }
 

@@ -24,9 +24,11 @@ import {
  CircularProgress,
  Tab,
  Tabs,
+ Stack,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { useErrorHandler } from '../utils/errorHandler';
 import axios from 'axios';
 import type { Invoice } from '../../types.js';
 import { formatCurrency } from '../utils/currency';
@@ -58,6 +60,7 @@ export function UserBillingPage() {
  const navigate = useNavigate();
  const { user, token } = useAuth();
  const { t } = useTranslation();
+ const { handleError } = useErrorHandler();
  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState('');
@@ -72,19 +75,33 @@ export function UserBillingPage() {
  const [chargeLoading, setChargeLoading] = useState(false);
 
  const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
- const [ordersLoading, setOrdersLoading] = useState(false);
- const [activeTab, setActiveTab] = useState(0);
-
- useEffect(() => {
- if (!user || !token) {
- navigate('/login');
- return;
- }
-
- fetchBillingInfo();
- fetchPaymentOrders();
- }, [user, token, navigate]);
-
+   const [ordersLoading, setOrdersLoading] = useState(false);
+   const [activeTab, setActiveTab] = useState(0);
+   const [systemSettings, setSystemSettings] = useState<{ supportEmail?: string }>({});
+ 
+   useEffect(() => {
+  if (!user || !token) {
+  navigate('/login');
+  return;
+  }
+ 
+  fetchBillingInfo();
+  fetchPaymentOrders();
+  fetchSettings();
+  }, [user, token, navigate]);
+ 
+   const fetchSettings = async () => {
+     try {
+       const response = await axios.get('/api/settings', {
+         headers: { Authorization: `Bearer ${token}` },
+       });
+       setSystemSettings({
+         supportEmail: response.data.supportEmail || 'support@example.com',
+       });
+     } catch (err: any) {
+       console.error('Failed to load settings:', handleError(err, false));
+     }
+   };
  const fetchBillingInfo = async () => {
  try {
  const response = await axios.get('/api/user/billing', {
@@ -92,7 +109,8 @@ export function UserBillingPage() {
  });
  setBillingInfo(response.data);
  } catch (err: any) {
- setError(err.response?.data?.error || t('billing.errors.failedLoadBillingInfo', 'Failed to load billing info'));
+ const errorMessage = handleError(err, false);
+ setError(errorMessage);
  } finally {
  setLoading(false);
  }
@@ -106,7 +124,7 @@ export function UserBillingPage() {
  });
  setPaymentOrders(response.data.orders);
  } catch (err: any) {
- console.error('Failed to load payment orders:', err);
+ console.error('Failed to load payment orders:', handleError(err, false));
  } finally {
  setOrdersLoading(false);
  }
@@ -138,7 +156,8 @@ export function UserBillingPage() {
  fetchBillingInfo();
  setTimeout(() => setRedeemDialogOpen(false),1500);
  } catch (err: any) {
- setRedeemError(err.response?.data?.error || t('billing.redeem.errors.failedRedeem', 'Failed to redeem code'));
+ const errorMessage = handleError(err, false);
+ setRedeemError(errorMessage);
  } finally {
  setRedeemLoading(false);
  }
@@ -168,7 +187,8 @@ export function UserBillingPage() {
  alert(t('billing.charge.scanQrCode', 'Please scan the QR code to complete payment'));
  }
  } catch (err: any) {
- alert(err.response?.data?.msg || t('billing.charge.errors.failedCreateOrder', 'Failed to create payment order'));
+ const errorMessage = handleError(err, false);
+ alert(errorMessage);
  } finally {
  setChargeLoading(false);
  }
@@ -439,6 +459,25 @@ export function UserBillingPage() {
  inputProps={{ step: '0.01', min: '0.01' }}
  sx={{ mb:2 }}
  />
+ <Box sx={{ mb: 2 }}>
+ <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+ {t('billing.charge.quickAmount', 'Quick Amount')}
+ </Typography>
+ <Stack direction="row" spacing={1}>
+ {['5', '10', '50', '100'].map((amount) => (
+ <Button
+ key={amount}
+ variant="outlined"
+ size="small"
+ onClick={() => setChargeAmount(amount)}
+ disabled={chargeLoading}
+ sx={{ flex: 1 }}
+ >
+ {t('billing.charge.amountPrefix', '🔮')} {amount}
+ </Button>
+ ))}
+ </Stack>
+ </Box>
  <TextField
  fullWidth
  select
@@ -451,6 +490,13 @@ export function UserBillingPage() {
  <option value="alipay">{t('billing.paymentTypes.alipay', 'Alipay')}</option>
  <option value="wxpay">{t('billing.paymentTypes.wxpay', 'WeChat Pay')}</option>
  </TextField>
+ <Alert severity="info" sx={{ mt: 2 }}>
+ <Typography variant="body2">
+ {t('billing.charge.contactSupport', 'If you encounter any payment issues, please contact support: {{email}}', {
+ email: systemSettings.supportEmail
+ })}
+ </Typography>
+ </Alert>
  </DialogContent>
  <DialogActions>
  <Button onClick={() => setChargeDialogOpen(false)} disabled={chargeLoading}>

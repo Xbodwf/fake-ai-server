@@ -36,6 +36,8 @@ import {
   Video,
   Upload,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useServer } from '../contexts/ServerContext';
 import type { PendingRequest, MessageContent, ImageGenerationRequest, VideoGenerationRequest } from '../types';
 
@@ -49,165 +51,117 @@ interface SentChunk {
   sentAt: number;
 }
 
-// 简单的 Markdown 渲染器
+// Markdown 渲染器组件
 function SimpleMarkdown({ content }: { content: string }) {
-  // 解析简单的 markdown 语法
-  const parseMarkdown = (text: string) => {
-    const lines = text.split('\n');
-    const elements: React.ReactNode[] = [];
-    let inCodeBlock = false;
-    let codeContent = '';
-    let codeLang = '';
-    let key = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // 代码块
-      if (line.startsWith('```')) {
-        if (!inCodeBlock) {
-          inCodeBlock = true;
-          codeLang = line.slice(3).trim();
-          codeContent = '';
-        } else {
-          inCodeBlock = false;
-          elements.push(
+  return (
+    <Box className="markdown-content">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 自定义样式以适配主题
+          h1: ({ children }) => (
+            <Typography variant="h5" sx={{ fontWeight: 700, mt: 2, mb: 1 }}>
+              {children}
+            </Typography>
+          ),
+          h2: ({ children }) => (
+            <Typography variant="h6" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
+              {children}
+            </Typography>
+          ),
+          h3: ({ children }) => (
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1, mb: 1 }}>
+              {children}
+            </Typography>
+          ),
+          p: ({ children }) => (
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              {children}
+            </Typography>
+          ),
+          ul: ({ children }) => (
+            <Box component="ul" sx={{ pl: 2, mb: 1 }}>
+              {children}
+            </Box>
+          ),
+          ol: ({ children }) => (
+            <Box component="ol" sx={{ pl: 2, mb: 1 }}>
+              {children}
+            </Box>
+          ),
+          li: ({ children }) => (
+            <Box component="li" sx={{ mb: 0.5 }}>
+              {children}
+            </Box>
+          ),
+          code: ({ inline, children }) => (
             <Box
-              key={key++}
+              component="code"
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                fontFamily: 'monospace',
+                backgroundColor: 'action.hover',
+                padding: '0.2em 0.4em',
+                borderRadius: '4px',
+                fontSize: '0.875em',
+                color: 'primary.main',
+              }}
+            >
+              {children}
+            </Box>
+          ),
+          pre: ({ children }) => (
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                backgroundColor: 'background.paper',
+                padding: 2,
                 borderRadius: 1,
-                p: 1.5,
-                mb: 1,
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
                 overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                mb: 2,
+                border: '1px solid',
+                borderColor: 'divider',
               }}
             >
-              {codeLang && (
-                <Typography variant="caption" color="primary" sx={{ display: 'block', mb: 0.5 }}>
-                  {codeLang}
-                </Typography>
-              )}
-              {codeContent}
+              {children}
             </Box>
-          );
-        }
-        continue;
-      }
-
-      if (inCodeBlock) {
-        codeContent += (codeContent ? '\n' : '') + line;
-        continue;
-      }
-
-      // 标题
-      if (line.startsWith('### ')) {
-        elements.push(
-          <Typography key={key++} variant="subtitle1" sx={{ fontWeight: 600, mt: 1, mb: 0.5 }}>
-            {line.slice(4)}
-          </Typography>
-        );
-        continue;
-      }
-      if (line.startsWith('## ')) {
-        elements.push(
-          <Typography key={key++} variant="h6" sx={{ fontWeight: 600, mt: 1, mb: 0.5 }}>
-            {line.slice(3)}
-          </Typography>
-        );
-        continue;
-      }
-      if (line.startsWith('# ')) {
-        elements.push(
-          <Typography key={key++} variant="h6" sx={{ fontWeight: 700, mt: 1, mb: 0.5 }}>
-            {line.slice(2)}
-          </Typography>
-        );
-        continue;
-      }
-
-      // 空行
-      if (!line.trim()) {
-        elements.push(<Box key={key++} sx={{ height: 8 }} />);
-        continue;
-      }
-
-      // 行内代码和粗体处理
-      const parts: React.ReactNode[] = [];
-      let partKey = 0;
-
-      let lastIndex = 0;
-      const combinedRegex = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
-      let match;
-
-      while ((match = combinedRegex.exec(line)) !== null) {
-        // 添加前面的文本
-        if (match.index > lastIndex) {
-          parts.push(<span key={partKey++}>{line.slice(lastIndex, match.index)}</span>);
-        }
-
-        if (match[1] !== undefined) {
-          // 行内代码
-          parts.push(
+          ),
+          blockquote: ({ children }) => (
             <Box
-              key={partKey++}
-              component="span"
               sx={{
-                backgroundColor: 'rgba(168, 199, 250, 0.15)',
-                borderRadius: 0.5,
-                px: 0.5,
-                fontFamily: 'monospace',
-                fontSize: '0.9em',
+                borderLeft: 4,
+                borderColor: 'primary.main',
+                pl: 2,
+                py: 1,
+                mb: 1,
+                fontStyle: 'italic',
+                color: 'text.secondary',
               }}
             >
-              {match[1]}
+              {children}
             </Box>
-          );
-        } else if (match[2] !== undefined) {
-          // 粗体
-          parts.push(
-            <Box key={partKey++} component="span" sx={{ fontWeight: 700 }}>
-              {match[2]}
-            </Box>
-          );
-        } else if (match[3] !== undefined && match[4] !== undefined) {
-          // 链接
-          parts.push(
+          ),
+          a: ({ href, children }) => (
             <Box
-              key={partKey++}
               component="a"
-              href={match[4]}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
-              sx={{ color: 'primary.main', textDecoration: 'underline' }}
+              sx={{
+                color: 'primary.main',
+                textDecoration: 'underline',
+                '&:hover': { textDecoration: 'none' },
+              }}
             >
-              {match[3]}
+              {children}
             </Box>
-          );
-        }
-
-        lastIndex = combinedRegex.lastIndex;
-      }
-
-      // 添加剩余文本
-      if (lastIndex < line.length) {
-        parts.push(<span key={partKey++}>{line.slice(lastIndex)}</span>);
-      }
-
-      elements.push(
-        <Typography key={key++} variant="body2" sx={{ mb: 0.5 }}>
-          {parts.length > 0 ? parts : line}
-        </Typography>
-      );
-    }
-
-    return elements;
-  };
-
-  return <Box>{parseMarkdown(content)}</Box>;
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </Box>
+  );
 }
 
 // 消息内容渲染组件
