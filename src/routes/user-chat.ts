@@ -206,6 +206,7 @@ async function handleUserChatRequest(
           }
         },
         requestParams,
+        requestType: 'chat',
       };
 
       addPendingRequest(pending);
@@ -235,6 +236,7 @@ async function handleUserChatRequest(
         createdAt: Date.now(),
         resolve: () => {},
         requestParams,
+        requestType: 'chat',
       };
 
       const responsePromise = new Promise<string>((resolve) => {
@@ -417,6 +419,7 @@ async function handleUserChatRequest(
         }
       },
       requestParams,
+        requestType: 'chat',
     };
 
     addPendingRequest(pending);
@@ -454,6 +457,7 @@ async function handleUserChatRequest(
       createdAt: Date.now(),
       resolve: () => {},
       requestParams,
+        requestType: 'chat',
     };
 
     const responsePromise = new Promise<string>((resolve) => {
