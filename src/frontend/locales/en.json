@@ -47,7 +47,9 @@
     "notFound": "Resource not found",
     "conflict": "Conflict occurred",
     "loadDataFailed": "Failed to load data",
-    "operationFailed": "Operation failed"
+    "operationFailed": "Operation failed",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "auth": {
     "login": "Login",
@@ -109,10 +111,11 @@
     "billing": "Billing",
     "profile": "Profile",
     "actions": "Actions",
-    "chat": "Chat",
+    "chat": "Chat Test",
     "requests": "Request Queue",
     "adminConsole": "Admin Console",
-    "invitation": "Invitation"
+    "invitation": "Invitation",
+    "account": "Account"
   },
   "chat": {
     "newSession": "New Chat",
@@ -132,14 +135,23 @@
     "uploadFiles": "Upload Files",
     "maxFileCount": "Max {{count}} files",
     "maxFileSize": "Max file size {{size}}MB",
-    "maxTotalSize": "Total size不超过 {{size}}MB",
+    "maxTotalSize": "Total size not exceeding {{size}}MB",
     "fileTypeNotSupported": "File type not supported",
     "fileTooLarge": "File too large",
     "copy": "Copy",
     "edit": "Edit",
     "resend": "Resend",
     "editPlaceholder": "Edit message...",
-    "send": "Send"
+    "send": "Send",
+    "thinkingProcess": "Thinking Process",
+    "toolCallsCalled": "Called {{count}} tools",
+    "result": "Result",
+    "copied": "Copied",
+    "copyCode": "Copy Code",
+    "thinking": "Thinking...",
+    "noModelsConfig": "No available models, please configure models first",
+    "copiedToClipboard": "Copied to clipboard",
+    "toggleSidebar": "Toggle Sidebar"
   },
   "adminNav": {
     "dashboard": "Dashboard",
@@ -393,19 +405,6 @@
     "setUid": "Set UID",
     "uidImmutable": "Your UID is automatically generated at registration and cannot be modified"
   },
-  "userNav": {
-    "dashboard": "Dashboard",
-    "apiKeys": "API Keys",
-    "usage": "Usage",
-    "billing": "Billing",
-    "profile": "Profile",
-    "actions": "Actions",
-    "chat": "Chat Test",
-    "requests": "Request Queue",
-    "adminConsole": "Admin Console",
-    "invitation": "Invitation",
-    "account": "Account"
-  },
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account, preferences, and security settings",
@@ -580,18 +579,32 @@
       "successAdded": "Successfully redeemed! Added {{amount}}",
       "errors": {
         "failedRedeem": "Failed to redeem code"
-      }
+      },
+      "codePlaceholder": "Enter your redemption code",
+      "confirm": "Redeem"
+    },
+    "paymentOrders": "Payment Orders",
+    "orders": {
+      "orderNo": "Order No.",
+      "type": "Type",
+      "amount": "Amount",
+      "status": "Status",
+      "createdAt": "Created",
+      "paidAt": "Paid At",
+      "empty": "No payment orders yet"
+    },
+    "statuses": {
+      "overdue": "Overdue"
     }
   },
   "actions": {
     "title": "Actions",
-    "description": "Create and manage reusable actions for multi-model collaboration",
+    "description": "Description",
     "createAction": "Create Action",
     "createNewAction": "Create New Action",
     "editAction": "Edit Action",
     "actionName": "Action Name",
     "name": "Name",
-    "description": "Description",
     "code": "Code",
     "noActions": "No actions yet. Create one to get started.",
     "public": "Public",
@@ -642,7 +655,7 @@
   },
   "actionMarketplace": {
     "title": "Action Marketplace",
-    "description": "Discover and use public actions created by the community",
+    "description": "Description",
     "search": "Search actions...",
     "noResults": "No actions found matching your search",
     "empty": "No public actions available yet",
@@ -655,7 +668,6 @@
     "overview": "Overview",
     "parameters": "Parameters",
     "code": "Code",
-    "description": "Description",
     "noParameters": "No parameters required"
   },
   "errors": {

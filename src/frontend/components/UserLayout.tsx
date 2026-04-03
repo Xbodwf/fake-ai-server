@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AppBar,
   Box,
@@ -15,8 +15,12 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Tooltip,
+  Avatar,
+  Menu,
+  MenuItem,
 } from '@mui/material';
-import { Menu as MenuIcon, LogOut, Settings as SettingsIcon, BookOpen, LayoutDashboard, Key, CreditCard, Activity, BarChart3, FileText, ShoppingBag, Zap, MessageSquare } from 'lucide-react';
+import { Menu as MenuIcon, LogOut, Settings as SettingsIcon, BookOpen, LayoutDashboard, Key, CreditCard, Activity, BarChart3, FileText, ShoppingBag, Zap, MessageSquare, ChevronLeft, ChevronRight, X, ChevronDown, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -25,6 +29,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeSwitcher } from './ThemeSwitcher';
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_WIDTH = 72;
 
 interface UserLayoutProps {
   children: React.ReactNode;
@@ -35,9 +40,9 @@ export function UserLayout({ children }: UserLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { mobileOpen, setMobileOpen, sidebarCollapsed, toggleSidebarCollapsed } = useSidebar();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { mobileOpen, setMobileOpen } = useSidebar();
 
   // 在非移动设备上导航时关闭侧边栏
   useEffect(() => {
@@ -75,112 +80,140 @@ export function UserLayout({ children }: UserLayoutProps) {
     setMobileOpen(false);
   };
 
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ 
-        p: 2, 
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        alignItems: 'center',
-      }}>
-        <Typography 
-          variant="h6" 
-          sx={{ 
-            fontWeight: 600,
-            color: 'primary.main',
-            letterSpacing: '-0.5px',
-            cursor: 'pointer',
-          }}
-          onClick={() => navigate('/dashboard')}
-        >
-          Phantom Mock
-        </Typography>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {!isMobile && (
+        <Box sx={{ 
+          p: 1, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        }}>
+          <Tooltip title={sidebarCollapsed ? t('common.expand', '展开') : t('common.collapse', '折叠')}>
+            <IconButton
+              onClick={toggleSidebarCollapsed}
+              size="small"
+              sx={{
+                color: 'text.secondary',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'text.primary',
+                },
+              }}
+            >
+              {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
 
       {/* 主菜单 */}
       <List sx={{ flex: 1, py: 1, overflowY: 'auto' }}>
         {menuItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigate(item.path)}
-              sx={{
-                borderRadius: 2,
-                mx: 1,
-                my: 0.5,
-                '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
+          <Tooltip key={item.path} title={sidebarCollapsed ? item.label : ''} placement="right">
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => handleNavigate(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  mx: sidebarCollapsed ? 1 : 1,
+                  my: 0.5,
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  px: sidebarCollapsed ? 1 : 1,
+                  '&.Mui-selected': {
                     backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
                   },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.label}
-                primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
-              />
-            </ListItemButton>
-          </ListItem>
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, display: 'flex', justifyContent: 'center' }}>
+                  {item.icon}
+                </ListItemIcon>
+                {!sidebarCollapsed && (
+                  <ListItemText 
+                    primary={item.label}
+                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+          </Tooltip>
         ))}
 
         {/* 账户菜单 */}
-        <Divider sx={{ my: 1, mx: 2 }} />
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            px: 3, 
-            py: 1,
-            color: 'text.secondary',
-            fontSize: '0.75rem',
-          }}
-        >
-          {t('user.account', 'Account')}
-        </Typography>
+        {!sidebarCollapsed && <Divider sx={{ my: 1, mx: 2 }} />}
+        {!sidebarCollapsed && (
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              px: 3, 
+              py: 1,
+              color: 'text.secondary',
+              fontSize: '0.75rem',
+            }}
+          >
+            {t('user.account', 'Account')}
+          </Typography>
+        )}
         {accountItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigate(item.path)}
-              sx={{
-                borderRadius: 2,
-                mx: 1,
-                my: 0.5,
-                '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
+          <Tooltip key={item.path} title={sidebarCollapsed ? item.label : ''} placement="right">
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => handleNavigate(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  mx: sidebarCollapsed ? 1 : 1,
+                  my: 0.5,
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  px: sidebarCollapsed ? 1 : 1,
+                  '&.Mui-selected': {
                     backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
                   },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.label}
-                primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
-              />
-            </ListItemButton>
-          </ListItem>
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, display: 'flex', justifyContent: 'center' }}>
+                  {item.icon}
+                </ListItemIcon>
+                {!sidebarCollapsed && (
+                  <ListItemText 
+                    primary={item.label}
+                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+          </Tooltip>
         ))}
 
         {/* 管理员控制台 */}
         {isAdmin && (
-          <>
-            <Divider sx={{ my: 1, mx: 2 }} />
+          <Tooltip key="admin-console" title={sidebarCollapsed ? t('userNav.adminConsole', '管理员控制台') : ''} placement="right">
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => handleNavigate('/console/dashboard')}
                 sx={{
                   borderRadius: 2,
-                  mx: 1,
+                  mx: sidebarCollapsed ? 1 : 1,
                   my: 0.5,
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  px: sidebarCollapsed ? 1 : 1,
                   backgroundColor: 'secondary.main',
                   color: 'secondary.contrastText',
                   '&:hover': {
@@ -188,64 +221,26 @@ export function UserLayout({ children }: UserLayoutProps) {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
+                <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, display: 'flex', justifyContent: 'center', color: 'inherit' }}>
                   <SettingsIcon size={20} />
                 </ListItemIcon>
-                <ListItemText 
-                  primary={t('userNav.adminConsole', '管理员控制台')}
-                  primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
-                />
+                {!sidebarCollapsed && (
+                  <ListItemText 
+                    primary={t('userNav.adminConsole', '管理员控制台')}
+                    primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
+                  />
+                )}
               </ListItemButton>
             </ListItem>
-          </>
+          </Tooltip>
         )}
       </List>
 
-      {/* 底部操作区 */}
+      {/* 语言和主题切换 */}
       <Box sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Button
-            fullWidth
-            variant="outlined"
-            size="small"
-            startIcon={<BookOpen size={16} />}
-            onClick={() => handleNavigate('/docs')}
-            sx={{ justifyContent: 'flex-start' }}
-          >
-            {t('nav.docs')}
-          </Button>
-          <Button
-            fullWidth
-            variant="outlined"
-            size="small"
-            startIcon={<SettingsIcon size={16} />}
-            onClick={() => handleNavigate('/settings')}
-            sx={{ justifyContent: 'flex-start' }}
-          >
-            {t('user.settings')}
-          </Button>
-          <Button
-            fullWidth
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={<LogOut size={16} />}
-            onClick={handleLogout}
-            sx={{ justifyContent: 'flex-start' }}
-          >
-            {t('common.logout')}
-          </Button>
-          
-          {/* 语言和主题切换 */}
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 1, 
-            justifyContent: 'center',
-            pt: 1,
-          }}>
-            <ThemeSwitcher />
-            <LanguageSwitcher />
-          </Box>
+        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+          <ThemeSwitcher />
+          <LanguageSwitcher />
         </Box>
       </Box>
     </Box>
@@ -253,23 +248,29 @@ export function UserLayout({ children }: UserLayoutProps) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', maxWidth: '100vw', overflow: 'hidden' }}>
-      {/* 桌面端侧边栏 */}
+      {/* 桌面端悬浮侧边栏 */}
       {!isMobile && (
-        <Drawer
-          variant="permanent"
+        <Box
           sx={{
-            width: DRAWER_WIDTH,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': {
-              width: DRAWER_WIDTH,
-              boxSizing: 'border-box',
-              backgroundColor: 'background.paper',
-              borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-            },
+            width: sidebarCollapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
+            height: 'auto',
+            maxHeight: '90vh',
+            position: 'fixed',
+            left: 20,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            backgroundColor: 'background.paper',
+            borderRadius: 3,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: '1px solid',
+            borderColor: 'divider',
+            zIndex: (theme) => theme.zIndex.drawer,
+            transition: 'width 0.3s ease',
+            overflow: 'auto',
           }}
         >
           {drawer}
-        </Drawer>
+        </Box>
       )}
 
       {/* 移动端抽屉 */}
@@ -279,15 +280,14 @@ export function UserLayout({ children }: UserLayoutProps) {
           anchor="left"
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: DRAWER_WIDTH,
-            },
-          }}
+          PaperProps={{ sx: { width: DRAWER_WIDTH } }}
         >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
+            <Typography variant="h6">{t('nav.menu')}</Typography>
+            <IconButton onClick={() => setMobileOpen(false)}>
+              <X size={24} />
+            </IconButton>
+          </Box>
           {drawer}
         </Drawer>
       )}
@@ -299,9 +299,9 @@ export function UserLayout({ children }: UserLayoutProps) {
           flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
-          width: { xs: '100vw', md: `calc(100vw - ${DRAWER_WIDTH}px)` },
+          width: { xs: '100vw', md: '100%' },
           minHeight: '100vh',
-          maxWidth: { xs: '100vw', md: `calc(100vw - ${DRAWER_WIDTH}px)` },
+          maxWidth: { xs: '100vw', md: '100%' },
           overflow: 'hidden',
         }}
       >
@@ -340,11 +340,45 @@ export function UserLayout({ children }: UserLayoutProps) {
               >
                 {[...menuItems, ...accountItems].find((item) => item.path === location.pathname)?.label || 'Dashboard'}
               </Typography>
-              {!isMobile && (
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {user?.username}
-                </Typography>
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <LanguageSwitcher />
+                <ThemeSwitcher />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', ml: 'auto' }} onClick={handleUserMenuOpen}>
+                  <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+                    {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                  </Avatar>
+                  <ChevronDown size={16} style={{ color: 'currentColor' }} />
+                </Box>
+                <Menu
+                  anchorEl={userMenuAnchor}
+                  open={Boolean(userMenuAnchor)}
+                  onClose={handleUserMenuClose}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                >
+                  <MenuItem onClick={() => { handleNavigate('/profile'); handleUserMenuClose(); }}>
+                    <User size={18} style={{ marginRight: 12 }} />
+                    {t('userNav.profile')}
+                  </MenuItem>
+                  {isAdmin && (
+                    <MenuItem onClick={() => { handleNavigate('/console/dashboard'); handleUserMenuClose(); }}>
+                      <SettingsIcon size={18} style={{ marginRight: 12 }} />
+                      {t('userNav.adminConsole')}
+                    </MenuItem>
+                  )}
+                  <Divider />
+                  <MenuItem onClick={() => { handleLogout(); handleUserMenuClose(); }} sx={{ color: 'error.main' }}>
+                    <LogOut size={18} style={{ marginRight: 12 }} />
+                    {t('common.logout')}
+                  </MenuItem>
+                </Menu>
+              </Box>
             </Toolbar>
           </AppBar>
         )}

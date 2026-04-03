@@ -13,6 +13,9 @@ import {
   Stack,
   Avatar,
   Collapse,
+  Tooltip,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   LayoutDashboard,
@@ -26,24 +29,33 @@ import {
   LogOut,
   Menu as MenuIcon,
   X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Home,
+  User,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSidebar } from '../contexts/SidebarContext';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeSwitcher } from './ThemeSwitcher';
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_WIDTH = 72;
 
 export function AdminNavBar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { sidebarCollapsed, toggleSidebarCollapsed } = useSidebar();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
   const mainMenuItems = [
     { label: t('nav.dashboard'), path: '/console/dashboard', icon: <LayoutDashboard size={20} /> },
@@ -72,71 +84,126 @@ export function AdminNavBar() {
     }
   };
 
-  const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
-          {t('nav.adminConsole')}
-        </Typography>
-      </Box>
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
 
-      <Box sx={{ flex: 1, overflowY: 'auto', py: 2 }}>
-        <List disablePadding>
-          {mainMenuItems.map((item) => (
-            <ListItemButton
-              key={item.path}
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigate(item.path)}
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {!isMobile && (
+        <Box sx={{ 
+          p: 1, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        }}>
+          <Tooltip title={sidebarCollapsed ? t('common.expand', '展开') : t('common.collapse', '折叠')}>
+            <IconButton
+              onClick={toggleSidebarCollapsed}
+              size="small"
               sx={{
-                mx: 2,
-                mb: 1,
-                borderRadius: 2,
-                py: 2,
-                backgroundColor: location.pathname === item.path ? 'primary.main' : 'transparent',
-                color: location.pathname === item.path ? 'primary.contrastText' : 'text.primary',
+                color: 'text.secondary',
                 '&:hover': {
-                  backgroundColor: location.pathname === item.path ? 'primary.dark' : 'action.hover',
+                  backgroundColor: 'action.hover',
+                  color: 'text.primary',
                 },
               }}
             >
-              <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
-                {item.icon}
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {item.label}
-                </Typography>
-              </Stack>
-            </ListItemButton>
+              {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+        <List disablePadding>
+          {mainMenuItems.map((item) => (
+            <Tooltip key={item.path} title={sidebarCollapsed ? item.label : ''} placement="right">
+              <ListItemButton
+                            selected={location.pathname === item.path}
+                            onClick={() => handleNavigate(item.path)}
+                            sx={{
+                              mx: sidebarCollapsed ? 1 : 2,
+                              mb: 1,
+                              borderRadius: 2,
+                              py: 2,
+                              justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                              px: sidebarCollapsed ? 1.5 : 2,
+                              backgroundColor: location.pathname === item.path ? 'primary.main' : 'transparent',
+                              color: location.pathname === item.path ? '#ffffff' : 'text.primary',
+                              fontWeight: location.pathname === item.path ? 600 : 400,
+                              boxShadow: location.pathname === item.path ? '0 2px 8px rgba(0, 0, 0, 0.15)' : 'none',
+                              '&:hover': {
+                                backgroundColor: location.pathname === item.path ? 'primary.dark' : 'action.hover',
+                              },
+                            }}
+                          >
+                            <Stack direction="row" alignItems="center" spacing={sidebarCollapsed ? 0 : 2} sx={{ width: '100%' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                {item.icon}
+                              </Box>
+                              {!sidebarCollapsed && (
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {item.label}
+                                </Typography>
+                              )}
+                            </Stack>
+                          </ListItemButton>            </Tooltip>
           ))}
         </List>
       </Box>
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
         <List disablePadding>
-          <ListItemButton
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            sx={{
-              mx: 2,
-              my: 1,
-              borderRadius: 2,
-              py: 2,
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-              </Avatar>
-              <Stack sx={{ flex: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {user?.username}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t('nav.admin')}
-                </Typography>
+          <Tooltip title={sidebarCollapsed ? user?.username || '' : ''} placement="right">
+            <ListItemButton
+              onClick={(e) => {
+                if (!isMobile) {
+                  handleUserMenuOpen(e);
+                } else {
+                  setUserMenuOpen(!userMenuOpen);
+                }
+              }}
+              sx={{
+                mx: sidebarCollapsed ? 1 : 2,
+                my: 1,
+                borderRadius: 2,
+                py: 2,
+                px: sidebarCollapsed ? 1.5 : 2,
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+              }}
+            >
+              <Stack 
+                direction="row" 
+                alignItems="center" 
+                spacing={sidebarCollapsed ? 0 : 2} 
+                sx={{ width: '100%', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}
+              >
+                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+                {!sidebarCollapsed && (
+                  <Stack sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {user?.username}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('nav.admin')}
+                    </Typography>
+                  </Stack>
+                )}
+                {!sidebarCollapsed && (
+                  <ChevronDown size={16} style={{ color: 'currentColor' }} />
+                )}
               </Stack>
-            </Stack>
-          </ListItemButton>
+            </ListItemButton>
+          </Tooltip>
 
-          <Collapse in={userMenuOpen}>
+          <Collapse in={userMenuOpen && !sidebarCollapsed}>
             <List disablePadding sx={{ pb: 2 }}>
               {accountMenuItems.map((item, index) => (
                 <ListItemButton
@@ -161,11 +228,45 @@ export function AdminNavBar() {
 
           <Divider />
 
-          <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <LanguageSwitcher />
-            <ThemeSwitcher />
-          </Box>
+          {!sidebarCollapsed && (
+            <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <LanguageSwitcher />
+              <ThemeSwitcher />
+            </Box>
+          )}
         </List>
+        
+        {/* 桌面端用户下拉菜单 */}
+        {!isMobile && (
+          <Menu
+            anchorEl={userMenuAnchor}
+            open={Boolean(userMenuAnchor)}
+            onClose={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            sx={{ mt: 2 }}
+          >
+            <MenuItem onClick={() => { navigate('/dashboard'); handleUserMenuClose(); }}>
+              <Home size={18} style={{ marginRight: 12 }} />
+              {t('userNav.dashboard')}
+            </MenuItem>
+            <MenuItem onClick={() => { handleNavigate('/profile'); handleUserMenuClose(); }}>
+              <User size={18} style={{ marginRight: 12 }} />
+              {t('userNav.profile')}
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { handleLogout(); handleUserMenuClose(); }} sx={{ color: 'error.main' }}>
+              <LogOut size={18} style={{ marginRight: 12 }} />
+              {t('common.logout')}
+            </MenuItem>
+          </Menu>
+        )}
       </Box>
     </Box>
   );
@@ -181,8 +282,7 @@ export function AdminNavBar() {
             right: 0,
             zIndex: (theme) => theme.zIndex.appBar,
             backgroundColor: 'background.paper',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             px: 2,
             py: 1,
             display: 'flex',
@@ -192,28 +292,44 @@ export function AdminNavBar() {
           <IconButton
             onClick={() => setMobileOpen(true)}
             color="inherit"
-            sx={{ mr: 1 }}
+            sx={{ mr: 2 }}
           >
             <MenuIcon size={24} />
           </IconButton>
 
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: 'primary.main',
-              cursor: 'pointer',
-              flexGrow: 1,
-            }}
-            onClick={() => navigate('/console/dashboard')}
-          >
-            {t('nav.adminConsole')}
-          </Typography>
-
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
             <LanguageSwitcher />
             <ThemeSwitcher />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={handleUserMenuOpen}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+              </Avatar>
+              <ChevronDown size={14} style={{ color: 'currentColor' }} />
+            </Box>
           </Stack>
+          <Menu
+            anchorEl={userMenuAnchor}
+            open={Boolean(userMenuAnchor)}
+            onClose={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={() => { navigate('/dashboard'); handleUserMenuClose(); }}>
+              <Home size={18} style={{ marginRight: 12 }} />
+              {t('userNav.dashboard')}
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => { handleLogout(); handleUserMenuClose(); }} sx={{ color: 'error.main' }}>
+              <LogOut size={18} style={{ marginRight: 12 }} />
+              {t('common.logout')}
+            </MenuItem>
+          </Menu>
         </Box>
 
         <Drawer
@@ -237,15 +353,21 @@ export function AdminNavBar() {
   return (
     <Box
       sx={{
-        width: DRAWER_WIDTH,
-        height: '100vh',
+        width: sidebarCollapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH,
+        height: 'auto',
+        maxHeight: '90vh',
         position: 'fixed',
-        left: 0,
-        top: 0,
+        left: { xs: 0, md: 20 },
+        top: '50%',
+        transform: 'translateY(-50%)',
         backgroundColor: 'background.paper',
-        borderRight: '1px solid',
+        borderRadius: 3,
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        border: '1px solid',
         borderColor: 'divider',
-        zIndex: (theme) => theme.zIndex.appBar - 1,
+        zIndex: (theme) => theme.zIndex.drawer,
+        transition: 'width 0.3s ease',
+        overflow: 'auto',
       }}
     >
       {drawerContent}

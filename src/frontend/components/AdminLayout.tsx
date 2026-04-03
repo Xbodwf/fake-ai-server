@@ -2,6 +2,7 @@ import { Box, useTheme, useMediaQuery } from '@mui/material';
 import { AdminNavBar } from './AdminNavBar';
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_WIDTH = 72;
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -18,16 +19,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { xs: '100%', md: `calc(100vw - ${DRAWER_WIDTH}px)` },
-          marginLeft: { md: `${DRAWER_WIDTH}px` },
+          width: { xs: '100%', md: '100%' },
           backgroundColor: 'background.default',
           pt: { xs: 8, md: 0 },
           overflow: 'auto',
           minHeight: '100vh',
-          maxWidth: { xs: '100vw', md: `calc(100vw - ${DRAWER_WIDTH}px)` },
+          maxWidth: '100%',
         }}
       >
-        <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: '100%', overflowX: 'hidden' }}>
+        <Box sx={{ 
+          p: { xs: 1, sm: 2, md: 3 }, 
+          maxWidth: '100%', 
+          overflowX: 'hidden',
+        }}>
           {children}
         </Box>
       </Box>

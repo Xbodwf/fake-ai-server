@@ -126,7 +126,20 @@ export function ModelCard({ model, onSelect, onPreview }: ModelCardProps) {
         </Box>
 
         {/* 描述 */}
-        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary', minHeight: 40 }}>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            mb: 2, 
+            color: 'text.secondary', 
+            minHeight: 60,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: 1.5,
+          }}
+        >
           {model.description || t('models.noDescription')}
         </Typography>
 

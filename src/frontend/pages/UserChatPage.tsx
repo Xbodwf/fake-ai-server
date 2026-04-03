@@ -194,7 +194,7 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
         >
           {language || 'code'}
         </Typography>
-        <Tooltip title={copied ? '已复制' : '复制代码'}>
+        <Tooltip title={copied ? t('chat.copied') : t('chat.copyCode')}>
           <IconButton size="small" onClick={handleCopy} sx={{ p: 0.5 }}>
             {copied ? <Check size={14} /> : <Copy size={14} />}
           </IconButton>
@@ -381,7 +381,7 @@ const MarkdownContent = memo(function MarkdownContent({ content }: MarkdownConte
   );
 });
 
-// ==================== 思考过程组件 ====================
+// ==================== {t('chat.thinkingProcess')}组件 ====================
 
 interface ThinkingBlockProps {
   content: string;
@@ -419,7 +419,7 @@ const ThinkingBlock = memo(function ThinkingBlock({ content }: ThinkingBlockProp
       >
         <Brain size={16} style={{ color: '#8b5cf6' }} />
         <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#8b5cf6' }}>
-          思考过程
+          {t('chat.thinkingProcess')}
         </Typography>
         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </Box>
@@ -480,7 +480,7 @@ const ToolCallBlock = memo(function ToolCallBlock({ toolCalls }: ToolCallBlockPr
       >
         <Wrench size={16} style={{ color: '#22c55e' }} />
         <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#22c55e' }}>
-          调用了 {toolCalls.length} 个工具
+          {t('chat.toolCallsCalled', { count: toolCalls.length })}
         </Typography>
         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </Box>
@@ -515,7 +515,7 @@ const ToolCallBlock = memo(function ToolCallBlock({ toolCalls }: ToolCallBlockPr
               {tool.result && (
                 <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    结果:
+                    {t('chat.result')}:
                   </Typography>
                   <Typography
                     variant="caption"
@@ -695,7 +695,7 @@ const MessageBubble = memo(function MessageBubble({
       </Avatar>
 
       <Box sx={{ flex: 1, minWidth: 0, maxWidth: { xs: '100%', sm: '85%' } }}>
-        {/* 思考过程 */}
+        {/* {t('chat.thinkingProcess')} */}
         {thinking && <ThinkingBlock content={thinking} />}
 
         {/* 工具调用 */}
@@ -742,7 +742,7 @@ const MessageBubble = memo(function MessageBubble({
                 <span />
               </Box>
               <Typography variant="body2" color="text.secondary">
-                思考中...
+                {t('chat.thinking')}
               </Typography>
             </Box>
           ) : null}
@@ -876,7 +876,7 @@ export function UserChatPage() {
 
   const createNewSession = useCallback(() => {
     if (!models || models.length === 0) {
-      setError('没有可用的模型，请先配置模型');
+      setError(t('chat.noModelsConfig'));
       return;
     }
 
@@ -1074,7 +1074,7 @@ export function UserChatPage() {
   const handleCopyMessage = useCallback(async (content: string) => {
     try {
       await navigator.clipboard.writeText(content);
-      setSnackbar({ open: true, message: '已复制到剪贴板' });
+      setSnackbar({ open: true, message: t('chat.copiedToClipboard') });
     } catch (e) {
       console.error('Failed to copy:', e);
     }
