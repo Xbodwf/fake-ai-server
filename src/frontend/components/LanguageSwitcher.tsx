@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Menu, MenuItem } from '@mui/material';
+import { IconButton, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
 import { Globe } from 'lucide-react';
 
@@ -26,14 +26,13 @@ export function LanguageSwitcher() {
 
   return (
     <>
-      <Button
-        startIcon={<Globe size={20} />}
+      <IconButton
         onClick={handleClick}
         size="small"
-        sx={{ textTransform: 'none' }}
+        sx={{ color: 'text.secondary' }}
       >
-        {currentLang}
-      </Button>
+        <Globe size={20} />
+      </IconButton>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}

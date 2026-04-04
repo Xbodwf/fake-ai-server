@@ -316,7 +316,7 @@ export function UserLayout({ children }: UserLayoutProps) {
       )}
 
       {/* 桌面端顶栏 - 展开时也显示，包含用户头像 */}
-      {!isMobile && !sidebarCollapsed && location.pathname !== '/chat' && (
+      {!isMobile && !sidebarCollapsed && (
         <Box
           sx={{
             position: 'fixed',
