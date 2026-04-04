@@ -316,7 +316,7 @@ export function UserLayout({ children }: UserLayoutProps) {
       )}
 
       {/* 桌面端顶栏 - 展开时也显示，包含用户头像 */}
-      {!isMobile && !sidebarCollapsed && (
+      {!isMobile && !sidebarCollapsed && location.pathname !== '/chat' && (
         <Box
           sx={{
             position: 'fixed',
@@ -443,18 +443,6 @@ export function UserLayout({ children }: UserLayoutProps) {
               >
                 {[...menuItems, ...accountItems].find((item) => item.path === location.pathname)?.label || 'Dashboard'}
               </Typography>
-              {!isMobile && !sidebarCollapsed && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <LanguageSwitcher />
-                  <ThemeSwitcher />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={handleUserMenuOpen}>
-                    <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
-                      {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                    </Avatar>
-                    <ChevronDown size={16} style={{ color: 'currentColor' }} />
-                  </Box>
-                </Box>
-              )}
               <Menu
                 anchorEl={userMenuAnchor}
                 open={Boolean(userMenuAnchor)}
