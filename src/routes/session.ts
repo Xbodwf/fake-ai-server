@@ -281,6 +281,17 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     }
 
     console.log(`[Session] Deleting session: ${id}`);
+    
+    // 删除会话的所有附件
+    try {
+      const { removeSessionAttachments } = await import('../attachmentStorage.js');
+      const deletedCount = await removeSessionAttachments(id as string);
+      console.log(`[Session] Deleted ${deletedCount} attachments for session ${id}`);
+    } catch (error) {
+      console.error('[Session] Error deleting attachments:', error);
+      // 继续删除会话，即使附件删除失败
+    }
+    
     const success = await deleteChatSession(id as string);
 
     if (success) {

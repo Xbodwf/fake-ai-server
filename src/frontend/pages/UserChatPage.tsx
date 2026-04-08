@@ -79,7 +79,14 @@ type ChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
-  files?: UploadedFile[];
+  files?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    dataUrl?: string; // 兼容旧的base64格式
+    attachmentId?: string; // 新的CDN附件ID
+  }>;
   thinking?: string;
   toolCalls?: ToolCall[];
   model?: string; // AI消息使用的模型
@@ -104,6 +111,7 @@ type UploadedFile = {
   size: number;
   dataUrl?: string;
   textContent?: string;
+  attachmentId?: string; // 服务器附件ID
 };
 
 type ApiType = 'openai-chat' | 'openai-responses' | 'anthropic-messages' | 'gemini';
@@ -562,6 +570,107 @@ const ToolCallBlock = memo(function ToolCallBlock({ toolCalls }: ToolCallBlockPr
   );
 });
 
+// ==================== 图片附件组件 ====================
+interface ImageAttachmentProps {
+  file: {
+    id: string;
+    name: string;
+    type: string;
+    dataUrl?: string;
+    attachmentId?: string;
+  };
+  onPreview: (url: string) => void;
+}
+
+const ImageAttachment = memo(function ImageAttachment({ file, onPreview }: ImageAttachmentProps) {
+  const { token } = useAuth();
+  const [blobUrl, setBlobUrl] = useState<string>('');
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    // 如果有attachmentId，从服务器获取Blob URL
+    if (file.attachmentId && token) {
+      const loadBlobUrl = async () => {
+        try {
+          const { getAttachmentBlobUrl } = await import('../utils/attachments');
+          const url = await getAttachmentBlobUrl(token, file.attachmentId);
+          setBlobUrl(url);
+        } catch (err) {
+          console.error('Failed to load attachment:', err);
+          setError(true);
+        }
+      };
+      loadBlobUrl();
+    }
+
+    // 清理Blob URL
+    return () => {
+      if (blobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [file.attachmentId, token]);
+
+  // 显示逻辑：优先使用Blob URL，其次base64，最后显示错误
+  const displayUrl = blobUrl || file.dataUrl;
+
+  if (error && !file.dataUrl) {
+    return (
+      <Box
+        sx={{
+          width: 80,
+          height: 80,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '12px',
+          bgcolor: 'action.hover',
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          加载失败
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!displayUrl) {
+    return (
+      <Box
+        sx={{
+          width: 80,
+          height: 80,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '12px',
+          bgcolor: 'action.hover',
+        }}
+      >
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      component="img"
+      src={displayUrl}
+      alt={file.name}
+      onClick={() => onPreview(displayUrl)}
+      sx={{
+        width: 80,
+        height: 80,
+        objectFit: 'cover',
+        borderRadius: '12px',
+        cursor: 'pointer',
+        transition: 'transform 0.2s',
+        '&:hover': { transform: 'scale(1.05)' },
+      }}
+    />
+  );
+});
+
 // ==================== 消息组件 ====================
 
 interface MessageBubbleProps {
@@ -624,22 +733,8 @@ const MessageBubble = memo(function MessageBubble({
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1, justifyContent: 'flex-end' }}>
               {message.files.map((file) => (
                 <Box key={file.id}>
-                  {file.type.startsWith('image/') && file.dataUrl ? (
-                    <Box
-                      component="img"
-                      src={file.dataUrl}
-                      alt={file.name}
-                      onClick={() => onImagePreview(file.dataUrl!)}
-                      sx={{
-                        width: 80,
-                        height: 80,
-                        objectFit: 'cover',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s',
-                        '&:hover': { transform: 'scale(1.05)' },
-                      }}
-                    />
+                  {file.type.startsWith('image/') ? (
+                    <ImageAttachment file={file} onPreview={onImagePreview} />
                   ) : (
                     <Chip size="small" icon={<Paperclip size={14} />} label={file.name} sx={{ borderRadius: '8px' }} />
                   )}
@@ -1151,7 +1246,29 @@ export function UserChatPage() {
       };
 
       if (isImage) {
-        uploaded.dataUrl = await readFileAsDataUrl(file);
+        // 读取为base64用于预览
+        const dataUrl = await readFileAsDataUrl(file);
+        uploaded.dataUrl = dataUrl; // 临时用于预览
+        
+        // 如果已登录且有当前会话，立即上传到服务器
+        if (token && currentSessionId) {
+          try {
+            const { uploadAttachment } = await import('../utils/attachments');
+            const attachment = await uploadAttachment(
+              token,
+              currentSessionId,
+              uploaded.id, // 使用临时ID作为messageId
+              file.name,
+              file.type,
+              dataUrl
+            );
+            uploaded.attachmentId = attachment.id;
+            console.log(`[Chat] Uploaded attachment: ${attachment.id}`);
+          } catch (error) {
+            console.error('[Chat] Failed to upload attachment:', error);
+            // 上传失败，继续使用本地base64
+          }
+        }
       } else {
         uploaded.textContent = await readFileAsText(file);
       }
@@ -1185,7 +1302,7 @@ export function UserChatPage() {
 
   const handleDeleteMessage = useCallback(
     async (messageIndex: number) => {
-      if (!currentSessionId) return;
+      if (!currentSessionId || !token) return;
       
       // 只读模式下不允许删除消息
       if (isReadOnly) {
@@ -1203,10 +1320,24 @@ export function UserChatPage() {
         return;
       }
       
+      // 删除消息中的附件（如果有）
+      if (message.files && message.files.length > 0) {
+        const { deleteAttachment } = await import('../utils/attachments');
+        for (const file of message.files) {
+          if (file.attachmentId) {
+            try {
+              await deleteAttachment(token, file.attachmentId);
+            } catch (error) {
+              console.error('Failed to delete attachment:', error);
+            }
+          }
+        }
+      }
+      
       messages.splice(messageIndex, 1);
       await updateSession(currentSessionId, { messages });
     },
-    [currentSessionId, isReadOnly, sessions, updateSession]
+    [currentSessionId, isReadOnly, sessions, updateSession, token]
   );
 
   const handleResendMessage = useCallback(
