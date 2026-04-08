@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware.js';
+import { Router, Response } from 'express';
+import { authMiddleware, AuthRequest } from '../middleware.js';
 import { saveAttachment, getAttachment, removeAttachment, removeSessionAttachments } from '../attachmentStorage.js';
 
 const router = Router();
@@ -11,10 +11,10 @@ router.use(authMiddleware);
  * 上传附件
  * POST /api/attachments
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const { sessionId, messageId, fileName, fileType, data } = req.body;
-    const userId = req.user?.uid;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -52,10 +52,10 @@ router.post('/', async (req: Request, res: Response) => {
  * 获取附件
  * GET /api/attachments/:id
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const userId = req.user?.uid;
+    const id = req.params.id as string;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -93,10 +93,10 @@ router.get('/:id', async (req: Request, res: Response) => {
  * 删除附件
  * DELETE /api/attachments/:id
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const userId = req.user?.uid;
+    const id = req.params.id as string;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -126,10 +126,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
  * 删除会话的所有附件
  * DELETE /api/attachments/session/:sessionId
  */
-router.delete('/session/:sessionId', async (req: Request, res: Response) => {
+router.delete('/session/:sessionId', async (req: AuthRequest, res: Response) => {
   try {
-    const { sessionId } = req.params;
-    const userId = req.user?.uid;
+    const sessionId = req.params.sessionId as string;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
