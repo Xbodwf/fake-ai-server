@@ -1,8 +1,9 @@
 import { Router, Response } from 'express';
+import type { Router as RouterType } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware.js';
 import { saveAttachment, getAttachment, removeAttachment, removeSessionAttachments } from '../attachmentStorage.js';
 
-const router = Router();
+const router: RouterType = Router();
 
 // 所有附件路由都需要鉴权
 router.use(authMiddleware);
