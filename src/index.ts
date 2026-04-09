@@ -120,12 +120,13 @@ async function initializeApp() {
     app.use('/api/admin', authMiddleware, adminMiddleware, createAdminPaymentRoutes(redeemCodeManager));
 
     // ==================== SSR 支持 ====================
-// 如果存在SSR构建产物，则启用服务端渲染
+// 只在生产环境且存在SSR构建产物时启用服务端渲染
+const isProduction = process.env.NODE_ENV === 'production';
 const serverEntryPath = join(process.cwd(), 'dist/server/server.js');
-const ssrEnabled = existsSync(serverEntryPath);
+const ssrEnabled = isProduction && existsSync(serverEntryPath);
 
 if (ssrEnabled) {
-  console.log('[Server] SSR enabled, loading server entry...');
+  console.log('[Server] SSR enabled (production mode), loading server entry...');
   
   try {
     // 动态导入SSR模块
