@@ -23,10 +23,18 @@ export default defineConfig({
     
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-mui': ['@mui/material', '@mui/icons-material'],
-          'vendor-utils': ['axios', 'i18next', 'react-i18next'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@mui')) {
+              return 'vendor-mui';
+            }
+            if (id.includes('axios') || id.includes('i18next') || id.includes('react-i18next')) {
+              return 'vendor-utils';
+            }
+          }
         },
       },
       onwarn(warning, warn) {

@@ -58,18 +58,35 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // 第三方库
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-mui': ['@mui/material', '@mui/icons-material'],
-          'vendor-utils': ['axios', 'i18next', 'react-i18next'],
-
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@mui')) {
+              return 'vendor-mui';
+            }
+            if (id.includes('axios') || id.includes('i18next') || id.includes('react-i18next')) {
+              return 'vendor-utils';
+            }
+          }
           // 页面组件
-          'page-auth': ['./src/frontend/pages/LoginPage.tsx', './src/frontend/pages/RegisterPage.tsx'],
-          'page-user': ['./src/frontend/pages/UserDashboard.tsx', './src/frontend/pages/UserApiKeysPage.tsx', './src/frontend/pages/UserProfilePage.tsx'],
-          'page-admin': ['./src/frontend/pages/AdminDashboard.tsx', './src/frontend/pages/AdminUsersPage.tsx', './src/frontend/pages/AdminModelsPage.tsx'],
-          'page-marketplace': ['./src/frontend/pages/ModelMarketplace.tsx', './src/frontend/pages/ActionMarketplace.tsx'],
-          'page-actions': ['./src/frontend/pages/ActionsPage.tsx', './src/frontend/pages/ActionEditorPage.tsx'],
+          if (id.includes('/pages/LoginPage.tsx') || id.includes('/pages/RegisterPage.tsx')) {
+            return 'page-auth';
+          }
+          if (id.includes('/pages/UserDashboard.tsx') || id.includes('/pages/UserApiKeysPage.tsx') || id.includes('/pages/UserProfilePage.tsx')) {
+            return 'page-user';
+          }
+          if (id.includes('/pages/AdminDashboard.tsx') || id.includes('/pages/AdminUsersPage.tsx') || id.includes('/pages/AdminModelsPage.tsx')) {
+            return 'page-admin';
+          }
+          if (id.includes('/pages/ModelMarketplace.tsx') || id.includes('/pages/ActionMarketplace.tsx')) {
+            return 'page-marketplace';
+          }
+          if (id.includes('/pages/ActionsPage.tsx') || id.includes('/pages/ActionEditorPage.tsx')) {
+            return 'page-actions';
+          }
         },
       },
     },
