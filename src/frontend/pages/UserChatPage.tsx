@@ -95,6 +95,12 @@ type ChatMessage = {
     completion_tokens: number;
     total_tokens: number;
   };
+  replyTo?: {
+    // 引用消息
+    messageId: string;
+    content: string;
+    role: 'user' | 'assistant';
+  };
 };
 
 type ToolCall = {
@@ -132,6 +138,17 @@ type ChatSession = {
   isOwner?: boolean;
   isReadOnly?: boolean;
 };
+
+// ==================== 工具函数 ====================
+
+function formatContextLength(length: number): string {
+  if (length >= 1000000) {
+    return `${(length / 1000000).toFixed(1)}M`;
+  } else if (length >= 1000) {
+    return `${(length / 1000).toFixed(0)}K`;
+  }
+  return length.toString();
+}
 
 // ==================== 常量 ====================
 
@@ -2191,7 +2208,9 @@ export function UserChatPage() {
                 >
                   <ListItemText
                     primary={model.id}
+                    secondary={model.context_length ? formatContextLength(model.context_length) : undefined}
                     primaryTypographyProps={{ fontSize: '0.875rem' }}
+                    secondaryTypographyProps={{ fontSize: '0.75rem', color: 'text.secondary' }}
                   />
                 </ListItemButton>
               </ListItem>
