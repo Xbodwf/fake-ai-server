@@ -1682,16 +1682,23 @@ export function UserChatPage() {
       clearTimeout(timeoutId);
       console.error('Chat error:', err);
 
-      if (err.name === 'AbortError') {
-        setError(`请求超时（${session.timeout || DEFAULT_TIMEOUT}秒）`);
-      } else {
-        setError(err.message || 'Failed to send message');
-      }
+      // 错误处理：作为AI消息显示而不是弹窗
+      const errorMessage = err.name === 'AbortError' 
+        ? `请求超时（${session.timeout || DEFAULT_TIMEOUT}秒）`
+        : (err.message || 'Failed to send message');
 
+      // 将错误作为AI消息添加到会话中
       setSessions((prev) =>
         prev.map((s) => {
           if (s.id === currentSessionId) {
-            const messages = s.messages.slice(0, -1);
+            const messages = [...s.messages];
+            // 替换最后一条空消息为错误消息
+            if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+              messages[messages.length - 1] = {
+                ...messages[messages.length - 1],
+                content: `❌ **错误**: ${errorMessage}`,
+              };
+            }
             return { ...s, messages };
           }
           return s;
