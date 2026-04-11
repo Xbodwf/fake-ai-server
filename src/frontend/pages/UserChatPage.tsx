@@ -1860,6 +1860,7 @@ export function UserChatPage() {
       >
         {/* 消息区域 - 可滚动 */}
         <Box
+          id="messages-container"
           ref={messageContainerRef}
           sx={{
             flex: 1,
@@ -1935,6 +1936,49 @@ export function UserChatPage() {
             </Box>
           )}
         </Box>
+
+        {/* 滚动按钮 */}
+        {currentSession && currentSession.messages.length > 5 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              right: 16,
+              bottom: currentSession ? 160 : 40,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              zIndex: 5,
+            }}
+          >
+            <Fab
+              size="small"
+              onClick={() => {
+                const container = document.getElementById('messages-container');
+                if (container) {
+                  container.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              sx={{
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <ChevronUp size={20} />
+            </Fab>
+            <Fab
+              size="small"
+              onClick={() => scrollToBottom('smooth')}
+              sx={{
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <ChevronDown size={20} />
+            </Fab>
+          </Box>
+        )}
 
         {/* 错误提示 */}
         {error && (
