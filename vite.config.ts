@@ -9,8 +9,17 @@ export default defineConfig({
   plugins: [
     react(),
     legacy({
-      targets: ['Chrome >= 90'],
-      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+      targets: ['Chrome >= 90', 'Firefox >= 88', 'Safari >= 14', 'Edge >= 90'],
+      additionalLegacyPolyfills: [
+        'regenerator-runtime/runtime',
+        'core-js/modules/es.promise.js',
+        'core-js/modules/es.array.includes.js',
+        'core-js/modules/es.object.assign.js',
+        'core-js/modules/es.string.includes.js',
+        'core-js/modules/es.symbol.js',
+        'core-js/modules/es.array.find.js',
+        'core-js/modules/es.array.from.js',
+      ],
       modernPolyfills: true,
       renderLegacyChunks: true,
     }),
