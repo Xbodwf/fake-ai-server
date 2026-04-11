@@ -71,7 +71,7 @@ import { useServer } from '../contexts/ServerContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useChat } from '../contexts/ChatContext';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { copyToClipboard } from '../utils/clipboard';
 
 // ==================== 类型定义 ====================
@@ -951,6 +951,7 @@ export function UserChatPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { id: sessionIdFromUrl } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
 
   // 状态
   const [input, setInput] = useState('');
@@ -1814,6 +1815,7 @@ export function UserChatPage() {
               selected={currentSessionId === session.id}
               onClick={() => {
                 setCurrentSessionId(session.id);
+                navigate(`/chat/${session.id}`, { replace: true }); // 更新URL
                 setMobileDrawerOpen(false);
               }}
               sx={{
@@ -1970,8 +1972,12 @@ export function UserChatPage() {
               }}
               sx={{
                 bgcolor: 'background.paper',
+                color: 'text.primary',
                 boxShadow: 2,
-                '&:hover': { bgcolor: 'action.hover' },
+                '&:hover': { 
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
+                },
               }}
             >
               <ChevronUp size={20} />
@@ -1981,8 +1987,12 @@ export function UserChatPage() {
               onClick={() => scrollToBottom('smooth')}
               sx={{
                 bgcolor: 'background.paper',
+                color: 'text.primary',
                 boxShadow: 2,
-                '&:hover': { bgcolor: 'action.hover' },
+                '&:hover': { 
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
+                },
               }}
             >
               <ChevronDown size={20} />
