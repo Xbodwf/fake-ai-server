@@ -1117,4 +1117,3 @@ export default function ModelManager() {
     );
   }
 }
-}
