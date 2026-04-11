@@ -843,7 +843,7 @@ export default function ModelManager() {
                           sx={{ width: '120px' }}
                         />
                         <TextField
-                          label={t('models.manager.tierPrice', '每Token价格($)')}
+                          label={t('models.manager.tierPrice', '每K tokens价格($)')}
                           type="number"
                           value={tier.pricePerToken}
                           onChange={(e) => {
@@ -852,7 +852,7 @@ export default function ModelManager() {
                             setFormData({ ...formData, tiered_tiers: newTiers });
                           }}
                           size="small"
-                          inputProps={{ min: 0, step: 0.0000001 }}
+                          inputProps={{ min: 0, step: 0.0001 }}
                           sx={{ flex: 1 }}
                         />
                         {formData.tiered_tiers.length > 1 && (

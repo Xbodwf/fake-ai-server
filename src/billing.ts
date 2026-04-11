@@ -123,9 +123,9 @@ export function calculateCost(
       }
     }
 
-    // 计算总费用：总token数 * 每token价格
+    // 计算总费用：总token数 * (每K tokens价格 / 1000)
     const totalTokens = promptTokens + completionTokens;
-    return totalTokens * (matchedTier.pricePerToken || 0);
+    return (totalTokens * (matchedTier.pricePerToken || 0)) / 1000;
   }
 
   // 按 token 计费（默认）
