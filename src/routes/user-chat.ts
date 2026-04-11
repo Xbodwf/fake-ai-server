@@ -394,70 +394,68 @@ async function handleUserChatRequest(
       // 包装 res 对象，拦截写入的数据并实时保存到会话
       let streamingContent = '';
       const originalWrite = res.write.bind(res);
-      const wrappedRes = {
-        ...res,
-        write: (chunk: any) => {
-          originalWrite(chunk);
-          
-          // 解析 SSE 数据并提取内容
-          const chunkStr = chunk.toString();
-          const lines = chunkStr.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              
-              try {
-                const json = JSON.parse(data);
-                const delta = json.choices?.[0]?.delta?.content;
-                if (delta) {
-                  streamingContent += delta;
-                  
-                  // 实时更新会话
-                  if (sessionId) {
-                    getChatSessionById(sessionId).then(async (session) => {
-                      if (session && session.ownerId === userId) {
-                        let aiMessageIndex = session.messages.findIndex(
-                          (m: any) => m.role === 'assistant' && m._isStreaming
-                        );
+      const wrappedRes = Object.create(res);
+      wrappedRes.write = (chunk: any) => {
+        originalWrite(chunk);
+        
+        // 解析 SSE 数据并提取内容
+        const chunkStr = chunk.toString();
+        const lines = chunkStr.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            
+            try {
+              const json = JSON.parse(data);
+              const delta = json.choices?.[0]?.delta?.content;
+              if (delta) {
+                streamingContent += delta;
+                
+                // 实时更新会话
+                if (sessionId) {
+                  getChatSessionById(sessionId).then(async (session) => {
+                    if (session && session.ownerId === userId) {
+                      let aiMessageIndex = session.messages.findIndex(
+                        (m: any) => m.role === 'assistant' && m._isStreaming
+                      );
+                      
+                      if (aiMessageIndex === -1) {
+                        const newMessages = [...session.messages, {
+                          role: 'assistant',
+                          content: delta,
+                          timestamp: Date.now(),
+                          _isStreaming: true,
+                        }];
                         
-                        if (aiMessageIndex === -1) {
-                          const newMessages = [...session.messages, {
-                            role: 'assistant',
-                            content: delta,
-                            timestamp: Date.now(),
-                            _isStreaming: true,
-                          }];
-                          
-                          await updateChatSession(sessionId, { 
-                            messages: newMessages,
-                            updatedAt: Date.now(),
-                          });
-                        } else {
-                          const updatedMessages = [...session.messages];
-                          updatedMessages[aiMessageIndex] = {
-                            ...updatedMessages[aiMessageIndex],
-                            content: updatedMessages[aiMessageIndex].content + delta,
-                          };
-                          
-                          await updateChatSession(sessionId, { 
-                            messages: updatedMessages,
-                            updatedAt: Date.now(),
-                          });
-                        }
+                        await updateChatSession(sessionId, { 
+                          messages: newMessages,
+                          updatedAt: Date.now(),
+                        });
+                      } else {
+                        const updatedMessages = [...session.messages];
+                        updatedMessages[aiMessageIndex] = {
+                          ...updatedMessages[aiMessageIndex],
+                          content: updatedMessages[aiMessageIndex].content + delta,
+                        };
+                        
+                        await updateChatSession(sessionId, { 
+                          messages: updatedMessages,
+                          updatedAt: Date.now(),
+                        });
                       }
-                    }).catch(() => {});
-                  }
+                    }
+                  }).catch(() => {});
                 }
-              } catch (e) {
-                // 忽略解析错误
               }
+            } catch (e) {
+              // 忽略解析错误
             }
           }
-          
-          return true;
-        },
+        }
+        
+        return true;
       };
 
       try {
