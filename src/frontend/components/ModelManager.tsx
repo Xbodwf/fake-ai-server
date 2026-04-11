@@ -1115,5 +1115,4 @@ export default function ModelManager() {
         </Dialog>
       </Box>
     );
-  }
 }
