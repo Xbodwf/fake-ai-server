@@ -60,7 +60,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         const { getChatSessionById, updateChatSession } = await import('../db/chatSessions.js');
         const session = await getChatSessionById(sessionId);
         
-        if (session && session.userId === userId) {
+        if (session && session.ownerId === userId) {
           // 更新会话：添加用户消息
           const userMessage = body.messages[body.messages.length - 1];
           if (userMessage && userMessage.role === 'user') {
@@ -151,6 +151,7 @@ async function handleUserChatRequest(
   apiKeyId: string,
   model: any
 ) {
+  const sessionId = body.sessionId; // 获取sessionId用于会话更新
   const requestParams = {
     temperature: body.temperature,
     top_p: body.top_p,
@@ -325,7 +326,7 @@ async function handleUserChatRequest(
             const { getChatSessionById, updateChatSession } = await import('../db/chatSessions.js');
             const session = await getChatSessionById(sessionId);
             
-            if (session && session.userId === userId) {
+            if (session && session.ownerId === userId) {
               const newMessages = [...session.messages, {
                 role: 'assistant' as const,
                 content: content,
