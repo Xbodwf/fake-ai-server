@@ -96,6 +96,7 @@ type ChatMessage = {
     completion_tokens: number;
     total_tokens: number;
   };
+  _isStreaming?: boolean; // 标记是否正在流式生成
   replyTo?: {
     // 引用消息
     messageId: string;
@@ -1524,6 +1525,7 @@ export function UserChatPage() {
         model: session.model,
         messages: messagesToSend,
         stream: session.stream,
+        sessionId: currentSessionId, // 包含会话ID以便后端自动保存消息
       };
 
       const response = await fetch('/api/chat', {

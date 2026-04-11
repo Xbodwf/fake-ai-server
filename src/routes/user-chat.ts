@@ -473,8 +473,10 @@ async function handleUserChatRequest(
               
               if (aiMessageIndex !== -1) {
                 const updatedMessages = [...session.messages];
-                const { _isStreaming, ...finalMessage } = updatedMessages[aiMessageIndex];
-                updatedMessages[aiMessageIndex] = finalMessage;
+                updatedMessages[aiMessageIndex] = {
+                  ...updatedMessages[aiMessageIndex],
+                  _isStreaming: false, // 标记为完成
+                };
                 
                 await updateChatSession(sessionId, { 
                   messages: updatedMessages,
@@ -666,8 +668,10 @@ async function handleUserChatRequest(
                   
                   if (aiMessageIndex !== -1) {
                     const updatedMessages = [...session.messages];
-                    const { _isStreaming, ...finalMessage } = updatedMessages[aiMessageIndex];
-                    updatedMessages[aiMessageIndex] = finalMessage;
+                    updatedMessages[aiMessageIndex] = {
+                      ...updatedMessages[aiMessageIndex],
+                      _isStreaming: false, // 标记为完成
+                    };
                     
                     await updateChatSession(sessionId, { 
                       messages: updatedMessages,
