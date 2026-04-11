@@ -2,11 +2,12 @@
 
 /**
  * 使用oxc快速编译TypeScript后端代码
+ * oxc可以同时生成JavaScript和类型声明文件(.d.ts)
  */
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { transform } from 'oxc-transform';
+import { transformSync } from 'oxc-transform';
 
 const SRC_DIR = './src';
 const DIST_DIR = './dist';
@@ -14,24 +15,39 @@ const DIST_DIR = './dist';
 async function compileFile(filePath, outPath) {
   const code = await fs.readFile(filePath, 'utf-8');
   
-  // 使用oxc转换TypeScript到JavaScript（返回Promise）
-  const result = await transform(code, filePath, {
-    lang: 'ts', // TypeScript
+  // 使用oxc转换TypeScript，同时生成声明文件
+  const result = transformSync(filePath, code, {
+    typescript: {
+      declaration: true, // 生成.d.ts声明文件
+    },
     sourcemap: true,
   });
+  
+  // 检查错误
+  if (result.errors && result.errors.length > 0) {
+    console.error(`[ERROR] ${filePath}:`, result.errors);
+    throw new Error(`Compilation failed: ${filePath}`);
+  }
   
   // 确保输出目录存在
   await fs.mkdir(path.dirname(outPath), { recursive: true });
   
-  // 写入编译后的代码
-  await fs.writeFile(outPath.replace('.ts', '.js'), result.code);
+  // 写入编译后的JavaScript代码
+  const jsPath = outPath.replace('.ts', '.js');
+  await fs.writeFile(jsPath, result.code);
   
-  // 如果有sourcemap，也写入
-  if (result.map) {
-    await fs.writeFile(outPath.replace('.ts', '.js.map'), result.map);
+  // 写入类型声明文件
+  if (result.declaration) {
+    const dtsPath = outPath.replace('.ts', '.d.ts');
+    await fs.writeFile(dtsPath, result.declaration);
   }
   
-  console.log(`[OK] ${filePath} -> ${outPath.replace('.ts', '.js')}`);
+  // 写入sourcemap
+  if (result.map) {
+    await fs.writeFile(jsPath + '.map', result.map);
+  }
+  
+  console.log(`[OK] ${filePath}`);
 }
 
 async function walkDir(dir, outDir) {
