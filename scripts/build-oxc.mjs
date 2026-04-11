@@ -16,9 +16,8 @@ async function compileFile(filePath, outPath) {
   
   // 使用oxc转换TypeScript到JavaScript
   const result = transform(code, filePath, {
-    lang: 1, // TypeScript
+    lang: 'ts', // TypeScript
     sourcemap: true,
-    jsx: 'react',
   });
   
   // 确保输出目录存在
@@ -32,7 +31,7 @@ async function compileFile(filePath, outPath) {
     await fs.writeFile(outPath.replace('.ts', '.js.map'), result.map);
   }
   
-  console.log(`✓ ${filePath} -> ${outPath.replace('.ts', '.js')}`);
+  console.log(`[OK] ${filePath} -> ${outPath.replace('.ts', '.js')}`);
 }
 
 async function walkDir(dir, outDir) {
@@ -53,7 +52,7 @@ async function walkDir(dir, outDir) {
 }
 
 async function main() {
-  console.log('🚀 使用oxc编译后端代码...');
+  console.log('[oxc] 开始编译后端代码...');
   const start = Date.now();
   
   try {
@@ -64,9 +63,9 @@ async function main() {
     await walkDir(SRC_DIR, DIST_DIR);
     
     const elapsed = Date.now() - start;
-    console.log(`\n✨ 编译完成！耗时 ${elapsed}ms`);
+    console.log(`[oxc] 编译完成！耗时 ${elapsed}ms`);
   } catch (error) {
-    console.error('❌ 编译失败:', error);
+    console.error('[oxc] 编译失败:', error);
     process.exit(1);
   }
 }
