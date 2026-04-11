@@ -14,8 +14,8 @@ const DIST_DIR = './dist';
 async function compileFile(filePath, outPath) {
   const code = await fs.readFile(filePath, 'utf-8');
   
-  // 使用oxc转换TypeScript到JavaScript
-  const result = transform(code, filePath, {
+  // 使用oxc转换TypeScript到JavaScript（返回Promise）
+  const result = await transform(code, filePath, {
     lang: 'ts', // TypeScript
     sourcemap: true,
   });
