@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 
 # 构建阶段
 FROM deps AS builder
-COPY tsconfig.json tsconfig.backend.json tsconfig.frontend.json vite.config.ts index.html ./
+COPY tsconfig.json tsconfig.backend.json tsconfig.frontend.json vite.config.ts vite-ssr.config.ts vite-ssr.config.server.ts index.html ./
 COPY public/ ./public/
 COPY src/ ./src/
 RUN pnpm build:ssr
