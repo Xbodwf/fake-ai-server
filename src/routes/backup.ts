@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { BSON } from 'bson';
-import { getDB, getClient } from '../db/connection.js';
+import { getDB } from '../db/connection.js';
 import { reloadAllCaches } from '../storage.js';
 
 const upload = multer({ dest: 'temp-uploads/' });
@@ -263,45 +263,14 @@ router.post('/import', upload.single('backup'), async (req: AuthRequest, res: Re
       }
       console.log(`[Backup] Validated ${collectionsToImport.length} collections, starting import...`);
 
-      // 阶段2：使用事务执行原子导入（如果数据库支持）
-      const client = getClient();
-      let session = null;
-      try {
-        if (client) {
-          session = client.startSession();
-          await session.startTransaction();
-          console.log('[Backup] Using transaction for atomic import');
+      // 阶段2：导入数据（不使用事务，兼容 standalone MongoDB）
+      for (const { name, data } of collectionsToImport) {
+        // 清空集合并导入数据
+        await db.collection(name).deleteMany({});
+        if (data.length > 0) {
+          await db.collection(name).insertMany(data);
         }
-      } catch (e: any) {
-        console.log(`[Backup] Transactions not supported (standalone MongoDB), proceeding without atomicity: ${e.message}`);
-        session = null;
-      }
-
-      try {
-        for (const { name, data } of collectionsToImport) {
-          const options = session ? { session } : {};
-          // 清空集合并导入数据
-          await db.collection(name).deleteMany({}, options);
-          if (data.length > 0) {
-            await db.collection(name).insertMany(data, options);
-          }
-          console.log(`[Backup] Imported collection: ${name} (${data.length} documents)`);
-        }
-
-        if (session) {
-          await session.commitTransaction();
-          console.log('[Backup] Transaction committed successfully');
-        }
-      } catch (e) {
-        if (session) {
-          await session.abortTransaction();
-          console.log('[Backup] Transaction aborted — no data was modified');
-        }
-        throw e; // 由外层 catch 处理清理和错误响应
-      } finally {
-        if (session) {
-          await session.endSession();
-        }
+        console.log(`[Backup] Imported collection: ${name} (${data.length} documents)`);
       }
 
       // 清理临时文件
