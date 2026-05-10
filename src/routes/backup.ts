@@ -5,7 +5,7 @@ import unzipper from 'unzipper';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
-import { EJSON } from 'mongodb';
+import { BSON } from 'bson';
 import { getDB, getClient } from '../db/connection.js';
 import { reloadAllCaches } from '../storage.js';
 
@@ -90,9 +90,10 @@ router.post('/export', async (req: AuthRequest, res: Response) => {
 
       const data = await db.collection(collectionName).find({}).toArray();
       
-      // 将数据写入JSON文件（使用 EJSON 保留 ObjectId、Date 等类型）
-      archive.append(EJSON.stringify(data, { relaxed: false }), {
-        name: `data/${collectionName}.json`
+      // 将数据写入BSON文件 — 每个文档单独序列化后拼接，避免16MB BSON文档大小限制
+      const bsonBuffers = data.map((doc: any) => BSON.serialize(doc));
+      archive.append(Buffer.concat(bsonBuffers), {
+        name: `data/${collectionName}.bson`
       });
       
       console.log(`[Backup] Exported collection: ${collectionName} (${data.length} documents)`);
@@ -236,15 +237,24 @@ router.post('/import', upload.single('backup'), async (req: AuthRequest, res: Re
       console.log('[Backup] Validating backup data before import...');
       const collectionsToImport: { name: string; data: any[] }[] = [];
       for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        const collectionName = file.replace('.json', '');
+        if (!file.endsWith('.bson')) continue;
+        const collectionName = file.replace('.bson', '');
         const filePath = path.join(dataDir, file);
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const fileContent = fs.readFileSync(filePath);
         let data: any;
         try {
-          data = EJSON.parse(fileContent);
+          // 读取拼接的BSON文档：每个BSON文档以自身长度(int32 LE)开头
+          const documents: any[] = [];
+          let offset = 0;
+          while (offset < fileContent.length) {
+            const docSize = fileContent.readInt32LE(offset);
+            const doc = BSON.deserialize(fileContent.subarray(offset, offset + docSize));
+            documents.push(doc);
+            offset += docSize;
+          }
+          data = documents;
         } catch (e: any) {
-          throw new Error(`Invalid JSON in ${file}: ${e.message}`);
+          throw new Error(`Invalid BSON in ${file}: ${e.message}`);
         }
         if (!Array.isArray(data)) {
           throw new Error(`Invalid backup data in ${file}: expected array, got ${typeof data}`);
