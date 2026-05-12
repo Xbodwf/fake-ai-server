@@ -106,6 +106,12 @@ export async function loadConfig(): Promise<Config> {
   } catch (e) {
     console.warn('[Storage] 加载配置失败，使用默认配置:', e);
     config = defaultConfig;
+    // 尝试写入默认配置文件，确保下次启动能正常读取
+    try {
+      await saveConfig(config);
+    } catch (writeErr) {
+      console.warn('[Storage] 无法写入默认配置文件:', writeErr);
+    }
     return config;
   }
 }

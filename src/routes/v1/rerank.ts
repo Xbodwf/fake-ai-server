@@ -175,17 +175,6 @@ router.post('/', async (req: Request, res: Response) => {
  });
  }
 
- const provider = getProviderById(model.providerId);
- if (!provider || !provider.enabled) {
- return res.status(400).json({
- error: {
- message: `Provider '${model.providerId}' not found or disabled`,
- type: 'invalid_request_error',
- code: 'provider_not_available',
- },
- });
- }
-
  const selected = await selectProviderKeyRoundRobin(model.providerId);
  if (!selected) {
  return res.status(502).json({
@@ -207,9 +196,8 @@ router.post('/', async (req: Request, res: Response) => {
  }
 
  // 检查是否配置了转发
- const hasForwarding = model.forwardingMode === 'none'
- ? false
- : isModelForwardingConfigured(runtimeModel);
+ const hasForwarding = (model.forwardingMode === 'provider')
+ || (model.forwardingMode !== 'none' && isModelForwardingConfigured(runtimeModel));
 
  if (hasForwarding) {
  try {

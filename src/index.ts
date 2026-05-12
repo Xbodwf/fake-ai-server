@@ -25,6 +25,7 @@ import {
   getAllModels,
   getModel,
   validateApiKey,
+  reloadAllCaches,
 } from './storage.js';
 import { getDB } from './db/index.js';
 import authRoutes from './routes/auth.js';
@@ -479,6 +480,20 @@ async function start() {
     console.log(formatEndpointsForConsole());
     console.log('========================================');
     console.log('模型数量:', getAllModels().length);
+
+    // 周期性缓存刷新：每 60 秒重新从 MongoDB 加载所有缓存
+    // 这能检测到 MongoDB 数据丢失并及时更新缓存状态
+    setInterval(async () => {
+      try {
+        await reloadAllCaches();
+        const modelCount = getAllModels().length;
+        if (modelCount === 0) {
+          console.warn('[Cache Refresh] WARNING: MongoDB 中没有任何模型数据！请检查 MongoDB 连接和数据状态。');
+        }
+      } catch (error) {
+        console.error('[Cache Refresh] 缓存刷新失败:', error);
+      }
+    }, 60 * 1000);
   });
 }
 

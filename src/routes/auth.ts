@@ -234,7 +234,12 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    const user = getUserByEmail(email);
+    let user = getUserByEmail(email);
+    // 缓存中没找到时回退查 DB（防止缓存未刷新导致误判）
+    if (!user) {
+      await loadUsers();
+      user = getUserByEmail(email);
+    }
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -323,8 +328,12 @@ router.post('/refresh', async (req: Request, res: Response) => {
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { getUserById } = await import('../storage.js');
-    const user = getUserById(req.userId!);
-
+    let user = getUserById(req.userId!);
+    // 缓存中没找到时回退查 DB
+    if (!user) {
+      await loadUsers();
+      user = getUserById(req.userId!);
+    }
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

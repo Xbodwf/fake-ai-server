@@ -100,18 +100,6 @@ async function resolveRuntimeModel(model: Model, modelId: string, res: Response)
  return null;
  }
 
- const provider = getProviderById(model.providerId);
- if (!provider || !provider.enabled) {
- res.status(400).json({
- error: {
- message: `Provider '${model.providerId}' not found or disabled`,
- type: 'invalid_request_error',
- code: 'provider_not_available',
- },
- });
- return null;
- }
-
  const selected = await selectProviderKeyRoundRobin(model.providerId);
  if (!selected) {
  res.status(502).json({

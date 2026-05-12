@@ -415,17 +415,6 @@ async function handleChatRequest(
  });
  }
 
- const provider = getProviderById(model.providerId);
- if (!provider || !provider.enabled) {
- return res.status(400).json({
- error: {
- message: `Provider '${model.providerId}' not found or disabled`,
- type: 'invalid_request_error',
- code: 'provider_not_available',
- },
- });
- }
-
  const selected = await selectProviderKeyRoundRobin(model.providerId);
  if (!selected) {
  return res.status(502).json({
@@ -484,9 +473,11 @@ async function handleChatRequest(
 
  // 节点模式：通过 WebSocket 转发，不使用 HTTP 转发
  const isNodeMode = model.forwardingMode === 'node' && model.nodeId && isNodeConnected(model.nodeId);
- const hasHttpForwarding = model.forwardingMode !== 'none'
+ // provider 模式下 key 选择已成功，HTTP 转发一定可用，无需再次检查缓存
+ const hasHttpForwarding = (model.forwardingMode === 'provider')
+ || (model.forwardingMode !== 'none'
  && model.forwardingMode !== 'node'
- && isModelForwardingConfigured(runtimeModel);
+ && isModelForwardingConfigured(runtimeModel));
 
  if (hasHttpForwarding) {
  console.log(`[Forwarder] HTTP 转发模式：${runtimeModel.api_type || 'openai'} API`);

@@ -95,14 +95,14 @@ function getEffectiveApiKey(model: Model): string {
  let effectiveApiKey = model.api_key || '';
  
  if (model.forwardingMode === 'provider' && model.providerId) {
- const provider = getProviderById(model.providerId);
- if (provider && provider.keys && provider.keys.length > 0) {
- const enabledKeys = provider.keys.filter(k => k.enabled);
- if (enabledKeys.length > 0) {
- const idx = (provider.rrCursor || 0) % enabledKeys.length;
- effectiveApiKey = enabledKeys[idx].key || effectiveApiKey;
- }
- }
+  const provider = getProviderById(model.providerId);
+  if (provider && provider.keys && provider.keys.length > 0) {
+   const enabledKeys = provider.keys.filter(k => k.enabled);
+   if (enabledKeys.length > 0) {
+    const idx = (provider.rrCursor || 0) % enabledKeys.length;
+    effectiveApiKey = enabledKeys[idx].key || effectiveApiKey;
+   }
+  }
  }
  
  return effectiveApiKey;
@@ -140,19 +140,19 @@ export function getForwardModelName(model: Model, requestedModel: string): strin
 export function isModelForwardingConfigured(model: Model): boolean {
  // 如果是节点转发模式，检查节点是否在线
  if (model.forwardingMode === 'node' && model.nodeId) {
- const node = getNodeById(model.nodeId);
- return node?.status === 'online';
+  const node = getNodeById(model.nodeId);
+  return node?.status === 'online';
  }
 
  // 如果是 provider 转发模式，检查 provider 是否配置
  if (model.forwardingMode === 'provider' && model.providerId) {
- const provider = getProviderById(model.providerId);
- if (provider && provider.keys && provider.keys.some(k => k.enabled)) {
- return true;
- }
+  const provider = getProviderById(model.providerId);
+  if (provider && provider.keys && provider.keys.some(k => k.enabled)) {
+   return true;
+  }
  }
 
- // 检查是否有 api_key 和 api_base_url
+ // 检查是否有 api_key 和 api_base_url（非 provider/node 模式的直接转发配置）
  return !!model.api_key && !!model.api_base_url;
 }
 
