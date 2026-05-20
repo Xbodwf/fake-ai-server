@@ -179,7 +179,16 @@
     "promptTokens": "提示词",
     "completionTokens": "补全",
     "totalTokens": "总计",
-    "timestamp": "时间戳"
+    "timestamp": "时间戳",
+    "cancelled": "用户取消了响应",
+    "reasoning": "推理中...",
+    "reasoned": "已完成推理",
+    "contextWarning": "上下文使用 {{pct}}%",
+    "contextCritical": "上下文即将耗尽 ({{pct}}%)，建议压缩",
+    "contextInfo": "上下文已使用 {{pct}}% ({{used}}/{{total}})",
+    "compress": "压缩",
+    "compressing": "压缩中...",
+    "compressed": "上下文已压缩"
   },
   "adminNav": {
     "dashboard": "仪表板",

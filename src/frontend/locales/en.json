@@ -166,7 +166,16 @@
     "addAttachment": "Add attachment",
     "moreOptions": "More options",
     "addToQueue": "Add to queue",
-    "confirmDelete": "Are you sure you want to delete this conversation?"
+    "confirmDelete": "Are you sure you want to delete this conversation?",
+    "cancelled": "Response cancelled",
+    "reasoning": "Reasoning...",
+    "reasoned": "Reasoning complete",
+    "contextWarning": "Context at {{pct}}%",
+    "contextCritical": "Context nearly full ({{pct}}%), consider compressing",
+    "contextInfo": "Context at {{pct}}% ({{used}}/{{total}})",
+    "compress": "Compress",
+    "compressing": "Compressing...",
+    "compressed": "Context compressed"
   },
   "adminNav": {
     "dashboard": "Dashboard",

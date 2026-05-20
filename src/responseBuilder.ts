@@ -36,8 +36,13 @@ export function buildStreamChunk(
   model: string,
   content: string,
   isFirst: boolean = false,
-  isLast: boolean = false
+  isLast: boolean = false,
+  reasoningContent?: string | null
 ): string {
+  const delta: any = isFirst ? { role: 'assistant', content } : { content };
+  if (reasoningContent !== undefined && reasoningContent !== null) {
+    delta.reasoning_content = reasoningContent;
+  }
   const chunk: ChatCompletionChunk = {
     id: requestId,
     object: 'chat.completion.chunk',
@@ -46,7 +51,7 @@ export function buildStreamChunk(
     choices: [
       {
         index: 0,
-        delta: isFirst ? { role: 'assistant', content } : { content },
+        delta,
         finish_reason: isLast ? 'stop' : null,
       },
     ],

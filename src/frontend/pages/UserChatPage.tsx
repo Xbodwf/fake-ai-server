@@ -36,6 +36,7 @@ import {
   Popover,
   Slider,
   Fab,
+  GlobalStyles,
 } from '@mui/material';
 import {
   Send,
@@ -65,6 +66,9 @@ import {
   Info,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css';
+import 'highlight.js/styles/github-dark.css';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from '../contexts/AuthContext';
 import { useServer } from '../contexts/ServerContext';
@@ -85,20 +89,20 @@ type ChatMessage = {
     name: string;
     type: string;
     size: number;
-    dataUrl?: string; // 兼容旧的base64格式
-    attachmentId?: string; // 新的CDN附件ID
+    dataUrl?: string;
+    attachmentId?: string;
   }>;
   thinking?: string;
+  reasoning_content?: string; // API级推理内容（如 DeepSeek-R1 的 reasoning_content）
   toolCalls?: ToolCall[];
-  model?: string; // AI消息使用的模型
+  model?: string;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
   };
-  _isStreaming?: boolean; // 标记是否正在流式生成
+  _isStreaming?: boolean;
   replyTo?: {
-    // 引用消息
     messageId: string;
     content: string;
     role: 'user' | 'assistant';
@@ -154,6 +158,140 @@ function formatContextLength(length: number): string {
   return length.toString();
 }
 
+// 粗略估算消息的token数（中文约1.5字/token，英文约4字/token）
+function estimateTokens(text: string): number {
+  const cjkChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length;
+  const asciiChars = text.length - cjkChars;
+  return Math.ceil(cjkChars * 1.5 + asciiChars / 4);
+}
+
+// 估算会话的总token数
+function estimateMessagesTokens(messages: any[]): number {
+  let total = 0;
+  for (const msg of messages) {
+    if (msg.content) {
+      total += estimateTokens(msg.content);
+    }
+    if (msg.reasoning_content) {
+      total += estimateTokens(msg.reasoning_content);
+    }
+    total += 4; // 每条消息的开销
+  }
+  return total;
+}
+
+// 获取上下文使用比例 (0-1)
+function getContextUsageRatio(messages: any[], contextLength: number | undefined): number {
+  if (!contextLength || contextLength <= 0) return 0;
+  const tokens = estimateMessagesTokens(messages);
+  return Math.min(tokens / contextLength, 1);
+}
+
+// ==================== 上下文预警组件 ====================
+
+interface ContextWarningProps {
+  messages: any[];
+  contextLength?: number;
+  onCompress: () => void;
+  compressing: boolean;
+}
+
+const ContextWarningBar = memo(function ContextWarningBar({
+  messages,
+  contextLength,
+  onCompress,
+  compressing,
+}: ContextWarningProps) {
+  const { t = (key: string, defaultValue?: string) => defaultValue || key } = useTranslation();
+  const theme = useTheme();
+
+  if (!contextLength || contextLength <= 0 || messages.length < 4) return null;
+
+  const ratio = getContextUsageRatio(messages, contextLength);
+  const tokens = estimateMessagesTokens(messages);
+
+  if (ratio < 0.5) return null;
+
+  const severity = ratio >= 0.9 ? 'critical' : ratio >= 0.75 ? 'warning' : 'info';
+
+  const colors = {
+    info: { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: '#3b82f6', bar: '#3b82f6' },
+    warning: { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', text: '#f59e0b', bar: '#f59e0b' },
+    critical: { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', text: '#ef4444', bar: '#ef4444' },
+  };
+
+  const c = colors[severity];
+
+  return (
+    <Fade in>
+      <Box
+        sx={{
+          mx: 2,
+          mb: 1.5,
+          p: 1.5,
+          borderRadius: '12px',
+          bgcolor: c.bg,
+          border: 1,
+          borderColor: c.border,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Info size={14} style={{ color: c.text, flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ flex: 1, color: c.text, fontWeight: 500, fontSize: '0.75rem' }}>
+            {severity === 'critical'
+              ? t('chat.contextCritical', '上下文即将耗尽 ({{pct}}%)，建议压缩', { pct: Math.round(ratio * 100) })
+              : severity === 'warning'
+              ? t('chat.contextWarning', '上下文使用 {{pct}}%', { pct: Math.round(ratio * 100) })
+              : t('chat.contextInfo', '上下文已使用 {{pct}}% ({{used}}/{{total}})', {
+                  pct: Math.round(ratio * 100),
+                  used: formatContextLength(tokens),
+                  total: formatContextLength(contextLength),
+                })}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={compressing}
+            onClick={onCompress}
+            sx={{
+              minWidth: 0,
+              px: 1.5,
+              py: 0.25,
+              fontSize: '0.7rem',
+              borderRadius: '8px',
+              textTransform: 'none',
+              borderColor: c.bar,
+              color: c.text,
+              '&:hover': { borderColor: c.text, bgcolor: c.bg },
+            }}
+          >
+            {compressing ? t('chat.compressing', '压缩中...') : t('chat.compress', '压缩')}
+          </Button>
+        </Box>
+        <Box
+          sx={{
+            width: '100%',
+            height: 3,
+            borderRadius: 2,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            sx={{
+              width: `${Math.min(ratio * 100, 100)}%`,
+              height: '100%',
+              borderRadius: 2,
+              bgcolor: c.bar,
+              transition: 'width 0.5s ease',
+            }}
+          />
+        </Box>
+      </Box>
+    </Fade>
+  );
+});
+
 // ==================== 常量 ====================
 
 const DEFAULT_SYSTEM_PROMPT = 'You are a helpful assistant.';
@@ -204,12 +342,47 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
   const theme = useTheme();
   const codeString = String(children).replace(/\n$/, '');
   const language = className?.replace('language-', '') || '';
+  const isSingleLine = !codeString.includes('\n');
+
+  const highlighted = useMemo(() => {
+    try {
+      if (language && hljs.getLanguage(language)) {
+        return hljs.highlight(codeString, { language }).value;
+      }
+      const result = hljs.highlightAuto(codeString);
+      return result.value;
+    } catch {
+      return codeString;
+    }
+  }, [codeString, language]);
 
   const handleCopy = async () => {
     await copyToClipboard(codeString);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (isSingleLine) {
+    return (
+      <Box
+        component="code"
+        sx={{
+          fontFamily: '"Fira Code", "JetBrains Mono", Consolas, monospace',
+          fontSize: '0.875em',
+          px: 1,
+          py: 0.3,
+          mx: 0.25,
+          borderRadius: '4px',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+          color: theme.palette.mode === 'dark' ? '#e879f9' : '#9333ea',
+          display: 'inline',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
+        }}
+        dangerouslySetInnerHTML={{ __html: highlighted }}
+      />
+    );
+  }
 
   return (
     <Paper
@@ -270,7 +443,7 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
           },
         }}
       >
-        <code className={className}>{children}</code>
+        <code className={className} dangerouslySetInnerHTML={{ __html: highlighted }} />
       </Box>
     </Paper>
   );
@@ -434,6 +607,103 @@ const MarkdownContent = memo(function MarkdownContent({ content }: MarkdownConte
     >
       {content}
     </ReactMarkdown>
+  );
+});
+
+// ==================== 推理过程组件 (API级 reasoning_content) ====================
+
+interface ReasoningBlockProps {
+  content: string;
+  isStreaming?: boolean;
+}
+
+const ReasoningBlock = memo(function ReasoningBlock({ content, isStreaming }: ReasoningBlockProps) {
+  const { t = (key: string, defaultValue?: string) => defaultValue || key } = useTranslation();
+  const [expanded, setExpanded] = useState(true);
+  const theme = useTheme();
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        mb: 1.5,
+        overflow: 'hidden',
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.06)',
+        border: 1,
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.25)' : 'rgba(59,130,246,0.15)',
+        borderRadius: '12px',
+        transition: 'border-color 0.3s',
+      }}
+    >
+      <Box
+        onClick={() => setExpanded(!expanded)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.5,
+          py: 1,
+          cursor: 'pointer',
+          userSelect: 'none',
+          '&:hover': {
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.1)',
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: '#3b82f6',
+            animation: isStreaming ? 'reasoning-pulse 1.2s ease-in-out infinite' : 'none',
+            '@keyframes reasoning-pulse': {
+              '0%, 100%': { opacity: 0.4, transform: 'scale(1)' },
+              '50%': { opacity: 1, transform: 'scale(1.3)' },
+            },
+          }}
+        />
+        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#3b82f6', fontSize: '0.8125rem' }}>
+          {isStreaming ? t('chat.reasoning', '推理中...') : t('chat.reasoned', '已完成推理')}
+        </Typography>
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </Box>
+      <Collapse in={expanded}>
+        <Box
+          sx={{
+            px: 1.5,
+            pb: 1.5,
+            pt: 0.5,
+            fontSize: '0.8125rem',
+            color: 'text.secondary',
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            fontStyle: 'italic',
+            borderTop: 1,
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)',
+          }}
+        >
+          {content}
+          {isStreaming && (
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-block',
+                width: 6,
+                height: 14,
+                ml: 0.5,
+                bgcolor: '#3b82f6',
+                animation: 'reasoning-cursor 0.8s step-end infinite',
+                '@keyframes reasoning-cursor': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0 },
+                },
+              }}
+            />
+          )}
+        </Box>
+      </Collapse>
+    </Paper>
   );
 });
 
@@ -852,21 +1122,46 @@ const MessageBubble = memo(function MessageBubble({
         sx={{
           width: 32,
           height: 32,
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+          bgcolor: theme.palette.mode === 'dark'
+            ? (message._isStreaming ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.1)')
+            : (message._isStreaming ? 'rgba(59,130,246,0.12)' : 'rgba(0,0,0,0.06)'),
           color: 'text.primary',
           flexShrink: 0,
+          transition: 'background-color 0.3s',
         }}
       >
-        {isLoading && isLastMessage && !message.content ? (
+        {message._isStreaming && !message.content ? (
           <CircularProgress size={16} color="inherit" />
+        ) : message._isStreaming ? (
+          <Box
+            component="span"
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              bgcolor: '#3b82f6',
+              animation: 'streaming-dot 1.4s ease-in-out infinite',
+              '@keyframes streaming-dot': {
+                '0%, 100%': { opacity: 0.3, transform: 'scale(0.8)' },
+                '50%': { opacity: 1, transform: 'scale(1.2)' },
+              },
+            }}
+          />
         ) : (
           <Sparkles size={16} />
         )}
       </Avatar>
 
       <Box sx={{ flex: 1, minWidth: 0, maxWidth: { xs: '100%', sm: '85%' } }}>
-        {/* {t('chat.thinkingProcess')} */}
-        {thinking && <ThinkingBlock content={thinking} />}
+        {/* API级推理内容 (reasoning_content) - 优先于 <thinking> 标签 */}
+        {message.reasoning_content ? (
+          <ReasoningBlock
+            content={message.reasoning_content}
+            isStreaming={message._isStreaming || (isLoading && isLastMessage)}
+          />
+        ) : thinking ? (
+          <ThinkingBlock content={thinking} />
+        ) : null}
 
         {/* 工具调用 */}
         {message.toolCalls && message.toolCalls.length > 0 && <ToolCallBlock toolCalls={message.toolCalls} />}
@@ -882,8 +1177,26 @@ const MessageBubble = memo(function MessageBubble({
           {output ? (
             <Box sx={{ fontSize: '0.9375rem' }}>
               <MarkdownContent content={output} />
+              {message._isStreaming && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-block',
+                    width: 6,
+                    height: 14,
+                    ml: 0.5,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                    animation: 'stream-cursor 0.8s step-end infinite',
+                    verticalAlign: 'middle',
+                    '@keyframes stream-cursor': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0 },
+                    },
+                  }}
+                />
+              )}
             </Box>
-          ) : isLoading && isLastMessage ? (
+          ) : (isLoading || message._isStreaming) && isLastMessage ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box
                 sx={{
@@ -954,7 +1267,7 @@ export function UserChatPage() {
   const { user } = useAuth();
   const { models } = useServer();
   const { toggleMobileOpen } = useSidebar();
-  const { sessions, currentSessionId, setCurrentSessionId, createNewSession, deleteSession, updateSession, setSessions, loadSessionFromServer, loadSessionsFromServer } = useChat();
+  const { sessions, currentSessionId, setCurrentSessionId, createNewSession, deleteSession, updateSession, setSessions, loadSessionFromServer, loadSessionsFromServer, sessionsLoading } = useChat();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { id: sessionIdFromUrl } = useParams<{ id?: string }>();
@@ -975,6 +1288,9 @@ export function UserChatPage() {
   // 队列和流式控制
   const [messageQueue, setMessageQueue] = useState<Array<{ input: string; files: UploadedFile[] }>>([]);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  // 上下文压缩
+  const [compressing, setCompressing] = useState(false);
 
   // 编辑状态
   const [editingTitle, setEditingTitle] = useState('');
@@ -1004,6 +1320,15 @@ export function UserChatPage() {
 
   // 流式更新的 ref
   const streamContentRef = useRef<string>('');
+  const reasoningContentRef = useRef<string>('');
+  const streamFinishedRef = useRef<boolean>(false);
+  const userCancelledRef = useRef<boolean>(false);
+
+  // 追踪 sessions 状态，避免闭包中 sessions 过时
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  const sessionsLoadingRef = useRef(sessionsLoading);
+  sessionsLoadingRef.current = sessionsLoading;
   const streamUpdateTimeoutRef = useRef<number | null>(null);
 
   // ==================== 计算属性 ====================
@@ -1085,9 +1410,18 @@ export function UserChatPage() {
     loadSessionFromServer(sessionIdFromUrl)
       .then((sessionData) => {
         if (!sessionData) {
-          // 会话不存在或无权限
-          console.log(`[Chat] Session not found or no permission: ${sessionIdFromUrl}`);
-          setError(t('chat.sessionNotFound', '会话不存在或无权限访问'));
+          // 可能会话还在加载中（会话列表未完成），跳过错误
+          const currentSessions = sessionsRef.current;
+          const nowInList = currentSessions.some(s => s.id === sessionIdFromUrl);
+          if (!nowInList) {
+            const stillLoading = sessionsLoadingRef.current;
+            if (!stillLoading) {
+              // 列表已加载完且不包含该会话 → 真正不存在
+              console.log(`[Chat] Session not found or no permission: ${sessionIdFromUrl}`);
+              setError(t('chat.sessionNotFound', '会话不存在或无权限访问'));
+            }
+            // 否则：列表还在加载中，跳过错误，等列表加载完再判断
+          }
           return;
         }
 
@@ -1130,6 +1464,10 @@ export function UserChatPage() {
     const session = sessions.find((s) => s.id === currentSessionId);
     if (!session) {
       console.log(`[Chat] Session not found in list: ${currentSessionId}`);
+      // 如果会话列表已加载完毕但仍找不到，且是从URL加载的，显示错误
+      if (!sessionsLoading && sessions.length > 0 && sessionIdFromUrl === currentSessionId) {
+        setError(t('chat.sessionNotFound', '会话不存在或无权限访问'));
+      }
       return;
     }
 
@@ -1138,7 +1476,42 @@ export function UserChatPage() {
     console.log(`[Chat] Session changed: id=${currentSessionId}, isReadOnly=${readonly}, messages=${session.messages?.length || 0}`);
     setIsReadOnly(readonly);
     setError('');
-  }, [currentSessionId, sessions]);
+  }, [currentSessionId, sessions, sessionsLoading, sessionIdFromUrl, t]);
+
+  // ===== 服务器托管流：轮询 _isStreaming 消息的更新 =====
+  // 当消息有 _isStreaming: true 时，定时刷新会话获取最新内容
+  useEffect(() => {
+    if (!currentSessionId || !token) return;
+
+    const hasStreaming = sessions.some(s =>
+      s.id === currentSessionId &&
+      s.messages?.some((m: any) => m._isStreaming === true && m.role === 'assistant')
+    );
+
+    if (!hasStreaming) return;
+
+    console.log('[Chat] Streaming in progress, starting poll');
+
+    const poll = async () => {
+      try {
+        const resp = await fetch(`/api/session/${currentSessionId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data?.messages) {
+          setSessions(prev => prev.map(s =>
+            s.id === currentSessionId
+              ? { ...s, messages: data.messages, updatedAt: Date.now() }
+              : s
+          ));
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, [currentSessionId, sessions, token]);
 
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
@@ -1424,6 +1797,40 @@ export function UserChatPage() {
     [currentSession, currentSessionId, token, isReadOnly, sessions, updateSession]
   );
 
+  // ==================== 上下文压缩 ====================
+
+  const handleCompress = useCallback(async () => {
+    if (!currentSession || !token) return;
+    setCompressing(true);
+    try {
+      const session = sessions.find(s => s.id === currentSessionId);
+      if (!session || session.messages.length < 4) return;
+
+      const keepCount = 4;
+      const toCompress = session.messages.slice(0, -keepCount);
+      const toKeep = session.messages.slice(-keepCount);
+
+      const compressedContent = toCompress
+        .filter(m => m.role !== 'system')
+        .map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content.substring(0, 500)}`)
+        .join('\n---\n');
+
+      const summaryMessage: ChatMessage = {
+        role: 'system',
+        content: `以下是该对话前 ${toCompress.length} 条消息的摘要，供 AI 参考上下文（无需回应，仅作上下文提示）：\n\n${compressedContent}`,
+        timestamp: Date.now(),
+      };
+
+      const newMessages = [summaryMessage, ...toKeep];
+      await updateSession(currentSessionId, { messages: newMessages });
+      setSnackbar({ open: true, message: t('chat.compressed', '上下文已压缩') });
+    } catch (err) {
+      console.error('Failed to compress:', err);
+    } finally {
+      setCompressing(false);
+    }
+  }, [currentSession, currentSessionId, sessions, updateSession, token, t]);
+
   // ==================== 队列管理 ====================
 
   const handleAddToQueue = useCallback(() => {
@@ -1435,6 +1842,7 @@ export function UserChatPage() {
 
   const handlePauseStream = useCallback(() => {
     if (abortController) {
+      userCancelledRef.current = true;
       abortController.abort();
       setAbortController(null);
       setLoading(false);
@@ -1508,6 +1916,8 @@ export function UserChatPage() {
     setLoading(true);
     setIsUserNearBottom(true);
     streamContentRef.current = '';
+    reasoningContentRef.current = '';
+    streamFinishedRef.current = false;
 
     // 创建 AbortController 用于超时控制和暂停
     const controller = new AbortController();
@@ -1606,10 +2016,12 @@ export function UserChatPage() {
                 const messages = [...s.messages];
                 const lastIndex = messages.length - 1;
                 if (messages[lastIndex]) {
-                  messages[lastIndex] = {
-                    ...messages[lastIndex],
-                    content: streamContentRef.current,
-                  };
+                  const msg: any = { ...messages[lastIndex] };
+                  msg.content = streamContentRef.current;
+                  if (reasoningContentRef.current) {
+                    msg.reasoning_content = reasoningContentRef.current;
+                  }
+                  messages[lastIndex] = msg;
                 }
                 return { ...s, messages };
               }
@@ -1642,11 +2054,27 @@ export function UserChatPage() {
             for (const line of lines) {
               if (line.startsWith('data: ')) {
                 const data = line.slice(6);
-                if (data === '[DONE]') continue;
+                if (data === '[DONE]') {
+                  streamFinishedRef.current = true;
+                  continue;
+                }
 
                 try {
                   const parsed = JSON.parse(data);
-                  const delta = parsed.choices?.[0]?.delta;
+                  const choice = parsed.choices?.[0];
+                  const delta = choice?.delta;
+
+                  // 检测流是否结束（某些实现通过 finish_reason 标记）
+                  if (choice?.finish_reason) {
+                    streamFinishedRef.current = true;
+                  }
+
+                  // 处理推理内容（reasoning_content）
+                  const reasoningContent = delta?.reasoning_content;
+                  if (reasoningContent) {
+                    reasoningContentRef.current += reasoningContent;
+                    throttledUpdate();
+                  }
 
                   // 处理文本内容
                   const content = delta?.content || '';
@@ -1684,127 +2112,113 @@ export function UserChatPage() {
             streamUpdateTimeoutRef.current = null;
           }
 
-          // 最终更新，包含工具调用和模型信息
-          setSessions((prev) =>
-            prev.map((s) => {
-              if (s.id === currentSessionId) {
-                const messages = [...s.messages];
-                const lastIndex = messages.length - 1;
-                if (messages[lastIndex]) {
-                  messages[lastIndex] = {
-                    ...messages[lastIndex],
-                    content: streamContentRef.current,
-                    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                    model: session.model, // 保存模型信息
-                  };
+          // 最终更新，包含推理内容、工具调用和模型信息
+          const finalMessages = await new Promise<any[]>((resolve) => {
+            setSessions((prev) => {
+              const target = prev.find(s => s.id === currentSessionId);
+              if (!target) return prev;
+              const messages = [...target.messages];
+              const lastIndex = messages.length - 1;
+              if (messages[lastIndex]) {
+                const msg: any = { ...messages[lastIndex] };
+                msg.content = streamContentRef.current;
+                msg.toolCalls = toolCalls.length > 0 ? toolCalls : undefined;
+                msg.model = session.model;
+                if (reasoningContentRef.current) {
+                  msg.reasoning_content = reasoningContentRef.current;
                 }
-                return { ...s, messages };
+                msg._isStreaming = undefined;
+                messages[lastIndex] = msg;
               }
-              return s;
-            })
-          );
+              resolve(messages);
+              return prev.map((s) =>
+                s.id === currentSessionId ? { ...s, messages } : s
+              );
+            });
+          });
+
+          // 同步到服务器
+          updateSession(currentSessionId, { messages: finalMessages }).catch(err => {
+            console.error('Failed to sync session:', err);
+          });
         }
       } else {
         const data = await response.json();
-        const assistantContent = data.choices?.[0]?.message?.content || '';
-        const toolCalls = data.choices?.[0]?.message?.tool_calls?.map((tc: any) => ({
+        const assistantMessage = data.choices?.[0]?.message || {};
+        const assistantContent = assistantMessage.content || '';
+        const toolCalls = assistantMessage.tool_calls?.map((tc: any) => ({
           id: tc.id,
           name: tc.function?.name || '',
           arguments: tc.function?.arguments || '',
         }));
 
-        setSessions((prev) =>
-          prev.map((s) => {
-            if (s.id === currentSessionId) {
-              const messages = [...s.messages];
-              const lastIndex = messages.length - 1;
-              messages[lastIndex] = {
-                ...messages[lastIndex],
-                content: assistantContent,
-                toolCalls,
-                model: session.model, // 保存模型信息
-                usage: data.usage, // 保存token使用量
-              };
-              return { ...s, messages, updatedAt: Date.now() };
+        const nonStreamMessages = await new Promise<any[]>((resolve) => {
+          setSessions((prev) => {
+            const target = prev.find(s => s.id === currentSessionId);
+            if (!target) return prev;
+            const messages = [...target.messages];
+            const lastIndex = messages.length - 1;
+            const msg: any = { ...messages[lastIndex] };
+            msg.content = assistantContent;
+            msg.toolCalls = toolCalls;
+            msg.model = session.model;
+            msg.usage = data.usage;
+            if (assistantMessage.reasoning_content) {
+              msg.reasoning_content = assistantMessage.reasoning_content;
             }
-            return s;
-          })
-        );
+            msg._isStreaming = undefined;
+            messages[lastIndex] = msg;
+            resolve(messages);
+            return prev.map((s) =>
+              s.id === currentSessionId ? { ...s, messages, updatedAt: Date.now() } : s
+            );
+          });
+        });
+
+        // 同步到服务器
+        updateSession(currentSessionId, { messages: nonStreamMessages }).catch(err => {
+          console.error('Failed to sync session:', err);
+        });
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
       console.error('Chat error:', err);
 
       // 错误处理：作为AI消息显示而不是弹窗
-      const errorMessage = err.name === 'AbortError' 
-        ? `请求超时（${session.timeout || DEFAULT_TIMEOUT}秒）`
+      const errorMessage = err.name === 'AbortError'
+        ? userCancelledRef.current
+          ? t('chat.cancelled', '用户取消了响应')
+          : `请求超时（${session.timeout || DEFAULT_TIMEOUT}秒）`
         : (err.message || 'Failed to send message');
 
-      // 将错误作为AI消息添加到会话中
-      setSessions((prev) =>
-        prev.map((s) => {
-          if (s.id === currentSessionId) {
-            const messages = [...s.messages];
-            // 替换最后一条空消息为错误消息
-            if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-              messages[messages.length - 1] = {
-                ...messages[messages.length - 1],
-                content: `❌ **错误**: ${errorMessage}`,
-              };
-            }
-            return { ...s, messages };
+      // 将错误作为AI消息添加到会话中并同步服务器
+      const errorMessages = await new Promise<any[]>((resolve) => {
+        setSessions((prev) => {
+          const target = prev.find(s => s.id === currentSessionId);
+          if (!target) return prev;
+          const messages = [...target.messages];
+          if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+            messages[messages.length - 1] = {
+              ...messages[messages.length - 1],
+              content: `❌ **错误**: ${errorMessage}`,
+              _isStreaming: undefined,
+            };
           }
-          return s;
-        })
-      );
+          resolve(messages);
+          return prev.map((s) =>
+            s.id === currentSessionId ? { ...s, messages } : s
+          );
+        });
+      });
+
+      updateSession(currentSessionId!, { messages: errorMessages }).catch(err => {
+        console.error('Failed to sync error session:', err);
+      });
     } finally {
       setLoading(false);
       setAbortController(null);
-
-      // 将更新后的会话同步到服务器并清除流式传输标记
-      if (currentSessionId) {
-        setSessions(prevSessions => {
-          const updatedSession = prevSessions.find(s => s.id === currentSessionId);
-          if (updatedSession) {
-            // 清除最后一条消息的流式传输标记
-            const messages = [...updatedSession.messages];
-            if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-              messages[messages.length - 1] = {
-                ...messages[messages.length - 1],
-                _isStreaming: undefined, // 清除流式传输标记
-              };
-            }
-
-            const sessionToSync = {
-              ...updatedSession,
-              messages,
-            };
-
-            // 同步完整的会话数据到服务器（所有持久化通过云端）
-            updateSession(currentSessionId, {
-              messages: sessionToSync.messages,
-              title: sessionToSync.title,
-              model: sessionToSync.model,
-              systemPrompt: sessionToSync.systemPrompt,
-              apiType: sessionToSync.apiType,
-              stream: sessionToSync.stream,
-              timeout: sessionToSync.timeout,
-            }).catch(err => {
-              console.error('Failed to sync session to server:', err);
-            });
-
-            return prevSessions; // 返回不变的状态
-          }
-          return prevSessions;
-        });
-      }
-
-      // 检查队列中是否有待发送的消息
-      if (messageQueue.length > 0 && currentSessionId) {
-        setTimeout(() => {
-          // 重新触发队列处理
-        }, 50);
-      }
+      streamFinishedRef.current = true;
+      userCancelledRef.current = false;
     }
   }, [input, files, currentSession, currentSessionId, token, models, sessions, messageQueue.length]);
 
@@ -1913,9 +2327,37 @@ export function UserChatPage() {
   // ==================== 主渲染 ====================
 
   return (
-    <Box
-      sx={{
-        position: 'fixed',
+    <>
+      <GlobalStyles
+        styles={{
+          // highlight.js: enable correct theme based on MUI mode
+          // github.css (light) is imported first, github-dark.css second.
+          // In light mode, override dark theme classes with light colors.
+          ...(theme.palette.mode === 'light' ? {
+            '.hljs': { color: '#24292e', background: 'transparent' },
+            '.hljs-comment,.hljs-quote': { color: '#6a737d' },
+            '.hljs-keyword,.hljs-selector-tag,.hljs-subst': { color: '#d73a49' },
+            '.hljs-number,.hljs-literal,.hljs-variable,.hljs-template-variable,.hljs-tag .hljs-attr': { color: '#005cc5' },
+            '.hljs-string,.hljs-doctag': { color: '#032f62' },
+            '.hljs-title,.hljs-section,.hljs-selector-id': { color: '#6f42c1' },
+            '.hljs-type,.hljs-class .hljs-title': { color: '#005cc5' },
+            '.hljs-tag,.hljs-name,.hljs-attribute': { color: '#22863a' },
+            '.hljs-regexp,.hljs-link': { color: '#032f62' },
+            '.hljs-symbol,.hljs-bullet': { color: '#005cc5' },
+            '.hljs-built_in,.hljs-builtin-name': { color: '#e36209' },
+            '.hljs-meta': { color: '#005cc5' },
+            '.hljs-deletion': { background: '#ffeef0' },
+            '.hljs-addition': { background: '#f0fff4' },
+          } : {
+            // Dark mode: github-dark-dimmed is already loaded as the last import,
+            // but ensure transparent background so the Paper's bgcolor shows through
+            '.hljs': { background: 'transparent' },
+          }),
+        }}
+      />
+      <Box
+        sx={{
+          position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
@@ -2006,6 +2448,18 @@ export function UserChatPage() {
             </Box>
           ) : (
             <Box sx={{ maxWidth: 800, mx: 'auto', width: '100%', pb: 2 }}>
+              {/* 上下文预警 */}
+              {(() => {
+                const sessionModel = models.find(m => m.id === currentSession?.model);
+                return (
+                  <ContextWarningBar
+                    messages={currentSession.messages}
+                    contextLength={sessionModel?.context_length}
+                    onCompress={handleCompress}
+                    compressing={compressing}
+                  />
+                );
+              })()}
               {currentSession.messages.map((message, index) => (
                 <MessageBubble
                   key={`${message.timestamp}-${index}`}
@@ -2797,5 +3251,6 @@ export function UserChatPage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
     </Box>
+    </>
   );
 }

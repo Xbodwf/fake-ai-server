@@ -194,9 +194,62 @@ async function handleUserChatRequest(
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
 
+      // ===== 服务器托管流：立即创建AI消息到DB =====
       let streamEnded = false;
       let totalContent = '';
       let completionTokens = 0;
+      let lastDbFlush = 0;
+      let nodeAiMsgCreated = false;
+
+      if (sessionId) {
+        try {
+          const session = await getChatSessionById(sessionId);
+          if (session && session.ownerId === userId) {
+            const newMessages = [...session.messages, {
+              role: 'assistant',
+              content: '',
+              timestamp: Date.now(),
+              model: body.model,
+              _isStreaming: true,
+            }];
+            await updateChatSession(sessionId, { messages: newMessages, updatedAt: Date.now() });
+            nodeAiMsgCreated = true;
+          }
+        } catch (e) {
+          console.error('[User Chat] Failed to create AI message for node stream:', e);
+        }
+      }
+
+      const flushNodeToDb = async (content: string) => {
+        if (!sessionId || !nodeAiMsgCreated || streamEnded) return;
+        try {
+          const s = await getChatSessionById(sessionId);
+          if (!s || s.ownerId !== userId) return;
+          const msgs = [...s.messages];
+          const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+          if (idx === -1) return;
+          msgs[idx] = { ...msgs[idx], content };
+          await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+        } catch {}
+      };
+
+      const finalizeNodeStream = async () => {
+        if (!sessionId || !nodeAiMsgCreated) return;
+        try {
+          const s = await getChatSessionById(sessionId);
+          if (!s || s.ownerId !== userId) return;
+          const msgs = [...s.messages];
+          const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+          if (idx === -1) return;
+          msgs[idx] = {
+            ...msgs[idx],
+            content: totalContent,
+            _isStreaming: false,
+          };
+          await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+          console.log(`[User Chat] Node stream finalized, session=${sessionId}`);
+        } catch {}
+      };
 
       const pending: PendingRequest = {
         requestId,
@@ -210,6 +263,12 @@ async function handleUserChatRequest(
               totalContent += content;
               completionTokens = calculateTokens(totalContent);
               res.write(buildStreamChunk(requestId, body.model, content, false));
+              
+              const now = Date.now();
+              if (sessionId && nodeAiMsgCreated && now - lastDbFlush > 300) {
+                lastDbFlush = now;
+                flushNodeToDb(totalContent).catch(() => {});
+              }
             }
           },
           close: () => {
@@ -234,7 +293,6 @@ async function handleUserChatRequest(
                 requestId,
               }).catch(err => console.error('[User Chat] Failed to create usage record:', err));
               
-              // 更新用户余额
               const user = getUserById(userId);
               if (user) {
                 updateUser(userId, {
@@ -242,6 +300,8 @@ async function handleUserChatRequest(
                   totalUsage: user.totalUsage + totalTokens,
                 }).catch(err => console.error('[User Chat] Failed to update user balance:', err));
               }
+              
+              finalizeNodeStream().catch(() => {});
               
               res.write(buildStreamChunk(requestId, body.model, '', false, true));
               res.write(buildStreamDone());
@@ -260,6 +320,7 @@ async function handleUserChatRequest(
         if (!streamEnded) {
           streamEnded = true;
           removePendingRequest(requestId);
+          finalizeNodeStream().catch(() => {});
           console.log('[User Chat] 节点请求超时:', requestId);
           res.write(buildStreamChunk(requestId, body.model, '请求超时，请重试', false, true));
           res.write(buildStreamDone());
@@ -391,72 +452,112 @@ async function handleUserChatRequest(
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
 
-      // 包装 res 对象，拦截写入的数据并实时保存到会话
+      // ===== 服务器托管流：立即创建AI消息到DB =====
       let streamingContent = '';
-      const originalWrite = res.write.bind(res);
-      const wrappedRes = Object.create(res);
-      wrappedRes.write = (chunk: any) => {
-        originalWrite(chunk);
-        
-        // 解析 SSE 数据并提取内容
-        const chunkStr = chunk.toString();
-        const lines = chunkStr.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            
-            try {
-              const json = JSON.parse(data);
-              const delta = json.choices?.[0]?.delta?.content;
-              if (delta) {
-                streamingContent += delta;
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
+      let streamingReasoning = '';
+      let streamEnded = false;
+      let lastDbFlush = 0;
+      let aiMsgCreated = false;
+
+      // 流开始前：创建AI消息（_isStreaming: true）确保刷新不丢失
+      if (sessionId) {
+        try {
+          const session = await getChatSessionById(sessionId);
+          if (session && session.ownerId === userId) {
+            const newMessages = [...session.messages, {
+              role: 'assistant',
+              content: '',
+              timestamp: Date.now(),
+              model: body.model,
+              _isStreaming: true,
+            }];
+            await updateChatSession(sessionId, { messages: newMessages, updatedAt: Date.now() });
+            aiMsgCreated = true;
+            console.log(`[User Chat] Created AI message in DB for session ${sessionId}`);
           }
+        } catch (e) {
+          console.error('[User Chat] Failed to create AI message in DB:', e);
         }
-        
-        return true;
+      }
+
+      // 节流：每300ms刷一次DB，让刷新页面能看到进度
+      const flushToDb = async () => {
+        if (!sessionId || streamEnded) return;
+        try {
+          const s = await getChatSessionById(sessionId);
+          if (!s || s.ownerId !== userId) return;
+          const msgs = [...s.messages];
+          const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+          if (idx === -1) return;
+          msgs[idx] = {
+            ...msgs[idx],
+            content: streamingContent,
+            reasoning_content: streamingReasoning || undefined,
+          };
+          await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+        } catch (e) {
+          // ignore flush errors
+        }
       };
 
       try {
-        await forwardStreamRequest(runtimeModel, body, wrappedRes as any);
-        
-        // 流结束：保存完整内容并标记完成
-        if (sessionId && streamingContent) {
-          try {
-            const session = await getChatSessionById(sessionId);
+        await forwardStreamRequest(runtimeModel, body, res, (info) => {
+          if (!streamEnded) {
+            if (info.content) streamingContent += info.content;
+            if (info.reasoningContent) streamingReasoning += info.reasoningContent || '';
             
-            if (session && session.ownerId === userId) {
-              const aiMessageIndex = session.messages.findIndex(
-                (m: any) => m.role === 'assistant' && m._isStreaming
-              );
-              
-              if (aiMessageIndex !== -1) {
-                const updatedMessages = [...session.messages];
-                updatedMessages[aiMessageIndex] = {
-                  ...updatedMessages[aiMessageIndex],
-                  content: streamingContent, // 使用内存中的完整内容
-                  _isStreaming: false, // 标记为完成
+            // 节流写入DB
+            const now = Date.now();
+            if (sessionId && aiMsgCreated && now - lastDbFlush > 300) {
+              lastDbFlush = now;
+              flushToDb().catch(() => {});
+            }
+          }
+        });
+        
+        // 流结束：标记完成并写入最终内容
+        streamEnded = true;
+        if (sessionId && aiMsgCreated) {
+          try {
+            const s = await getChatSessionById(sessionId);
+            if (s && s.ownerId === userId) {
+              const msgs = [...s.messages];
+              const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+              if (idx !== -1) {
+                msgs[idx] = {
+                  ...msgs[idx],
+                  content: streamingContent,
+                  reasoning_content: streamingReasoning || undefined,
+                  _isStreaming: false,
                 };
-                
-                await updateChatSession(sessionId, { 
-                  messages: updatedMessages,
-                  updatedAt: Date.now(),
-                });
-                
-                console.log(`[User Chat] Forward stream completed for session ${sessionId}, length=${streamingContent.length}`);
+                await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+                console.log(`[User Chat] Forward stream finalized, session=${sessionId}, content=${streamingContent.length} chars`);
               }
             }
-          } catch (error) {
-            console.error('[User Chat] Failed to finalize forwarded stream:', error);
+          } catch (e) {
+            console.error('[User Chat] Failed to finalize forward stream:', e);
           }
         }
       } catch (error: any) {
+        streamEnded = true;
         console.error('[User Chat] Stream forwarding failed:', error.message);
+        if (sessionId && aiMsgCreated) {
+          try {
+            const s = await getChatSessionById(sessionId);
+            if (s && s.ownerId === userId) {
+              const msgs = [...s.messages];
+              const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+              if (idx !== -1) {
+                msgs[idx] = {
+                  ...msgs[idx],
+                  content: streamingContent || `请求失败: ${error.message}`,
+                  _isStreaming: false,
+                };
+                await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+              }
+            }
+          } catch (e) {}
+        }
         if (!res.headersSent) {
           return res.status(502).json({
             error: {
@@ -523,13 +624,17 @@ async function handleUserChatRequest(
             // 从响应中提取AI消息
             if (response.choices && response.choices[0]?.message) {
               const aiMessage = response.choices[0].message;
-              const newMessages = [...session.messages, {
+              const newMessage: any = {
                 role: aiMessage.role,
                 content: typeof aiMessage.content === 'string' 
                   ? aiMessage.content 
                   : JSON.stringify(aiMessage.content),
                 timestamp: Date.now(),
-              }];
+              };
+              if (aiMessage.reasoning_content) {
+                newMessage.reasoning_content = aiMessage.reasoning_content;
+              }
+              const newMessages = [...session.messages, newMessage];
               
               await updateChatSession(sessionId, { 
                 messages: newMessages,
@@ -557,9 +662,63 @@ async function handleUserChatRequest(
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
+    // ===== 服务器托管流：立即创建AI消息到DB =====
     let streamEnded = false;
-    let streamingMessageContent = ''; // 内存缓存：完整的流式消息内容
-    let streamingMessageSaved = false; // 是否已创建AI消息到数据库
+    let streamingMessageContent = '';
+    let manualAiMsgCreated = false;
+    let lastDbFlush = 0;
+
+    if (sessionId) {
+      try {
+        const session = await getChatSessionById(sessionId);
+        if (session && session.ownerId === userId) {
+          const newMessages = [...session.messages, {
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            model: body.model,
+            _isStreaming: true,
+          }];
+          await updateChatSession(sessionId, { messages: newMessages, updatedAt: Date.now() });
+          manualAiMsgCreated = true;
+        }
+      } catch (e) {
+        console.error('[User Chat] Failed to create AI message for manual stream:', e);
+      }
+    }
+
+    const flushManualToDb = async (content: string) => {
+      if (!sessionId || !manualAiMsgCreated || streamEnded) return;
+      try {
+        const s = await getChatSessionById(sessionId);
+        if (!s || s.ownerId !== userId) return;
+        const msgs = [...s.messages];
+        const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+        if (idx === -1) return;
+        msgs[idx] = { ...msgs[idx], content };
+        await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+      } catch {}
+    };
+
+    const finalizeManualStream = async () => {
+      if (!sessionId || !manualAiMsgCreated) return;
+      try {
+        const s = await getChatSessionById(sessionId);
+        if (!s || s.ownerId !== userId) return;
+        const msgs = [...s.messages];
+        const idx = msgs.findIndex((m: any) => m.role === 'assistant' && m._isStreaming);
+        if (idx === -1) return;
+        msgs[idx] = {
+          ...msgs[idx],
+          content: streamingMessageContent,
+          _isStreaming: false,
+        };
+        await updateChatSession(sessionId, { messages: msgs, updatedAt: Date.now() });
+        console.log(`[User Chat] Manual stream finalized, session=${sessionId}, length=${streamingMessageContent.length}`);
+      } catch (e) {
+        console.error('[User Chat] Failed to finalize manual stream:', e);
+      }
+    };
 
     const pending: PendingRequest = {
       requestId,
@@ -571,106 +730,22 @@ async function handleUserChatRequest(
         enqueue: async (content: string) => {
           if (!streamEnded) {
             res.write(buildStreamChunk(requestId, body.model, content, false));
-            
-            // 内存中追加内容
             streamingMessageContent += content;
-            
-            // 每100ms保存一次到数据库（节流）
-            if (sessionId && !streamingMessageSaved) {
-              streamingMessageSaved = true;
-              
-              // 创建新的AI消息
-              try {
-                const session = await getChatSessionById(sessionId);
-                
-                if (session && session.ownerId === userId) {
-                  const newMessages = [...session.messages, {
-                    role: 'assistant',
-                    content: streamingMessageContent,
-                    timestamp: Date.now(),
-                    _isStreaming: true, // 标记为正在生成
-                  }];
-                  
-                  await updateChatSession(sessionId, { 
-                    messages: newMessages,
-                    updatedAt: Date.now(),
-                  });
-                }
-              } catch (error) {
-                console.error('[User Chat] Failed to create streaming message:', error);
-              }
-              
-              // 定期更新数据库（每500ms）
-              const updateInterval = setInterval(async () => {
-                if (streamEnded) {
-                  clearInterval(updateInterval);
-                  return;
-                }
-                
-                try {
-                  const session = await getChatSessionById(sessionId);
-                  if (session && session.ownerId === userId) {
-                    const aiMessageIndex = session.messages.findIndex(
-                      (m: any) => m.role === 'assistant' && m._isStreaming
-                    );
-                    
-                    if (aiMessageIndex !== -1) {
-                      const updatedMessages = [...session.messages];
-                      updatedMessages[aiMessageIndex] = {
-                        ...updatedMessages[aiMessageIndex],
-                        content: streamingMessageContent,
-                      };
-                      
-                      await updateChatSession(sessionId, { 
-                        messages: updatedMessages,
-                        updatedAt: Date.now(),
-                      });
-                    }
-                  }
-                } catch (error) {
-                  console.error('[User Chat] Failed to update streaming content:', error);
-                }
-              }, 500);
+
+            const now = Date.now();
+            if (sessionId && manualAiMsgCreated && now - lastDbFlush > 300) {
+              lastDbFlush = now;
+              flushManualToDb(streamingMessageContent).catch(() => {});
             }
           }
         },
         close: async () => {
           if (!streamEnded) {
             streamEnded = true;
+            await finalizeManualStream().catch(() => {});
             res.write(buildStreamChunk(requestId, body.model, '', false, true));
             res.write(buildStreamDone());
             res.end();
-            
-            // 流结束：保存完整内容并移除 _isStreaming 标记
-            if (sessionId && streamingMessageContent) {
-              try {
-                const session = await getChatSessionById(sessionId);
-                
-                if (session && session.ownerId === userId) {
-                  const aiMessageIndex = session.messages.findIndex(
-                    (m: any) => m.role === 'assistant' && m._isStreaming
-                  );
-                  
-                  if (aiMessageIndex !== -1) {
-                    const updatedMessages = [...session.messages];
-                    updatedMessages[aiMessageIndex] = {
-                      ...updatedMessages[aiMessageIndex],
-                      content: streamingMessageContent, // 使用内存中的完整内容
-                      _isStreaming: false, // 标记为完成
-                    };
-                    
-                    await updateChatSession(sessionId, { 
-                      messages: updatedMessages,
-                      updatedAt: Date.now(),
-                    });
-                    
-                    console.log(`[User Chat] Stream completed for session ${sessionId}, length=${streamingMessageContent.length}`);
-                  }
-                }
-              } catch (error) {
-                console.error('[User Chat] Failed to finalize streaming message:', error);
-              }
-            }
           }
         }
       },
@@ -680,7 +755,6 @@ async function handleUserChatRequest(
 
     addPendingRequest(pending);
 
-    // 优先使用反向 WebSocket 客户端
     if (hasReverseClients()) {
       const sentCount = broadcastRequestToReverseClients(pending);
       if (sentCount > 0) {
@@ -696,6 +770,7 @@ async function handleUserChatRequest(
       if (!streamEnded) {
         streamEnded = true;
         removePendingRequest(requestId);
+        finalizeManualStream().catch(() => {});
         res.write(buildStreamDone());
         res.end();
       }

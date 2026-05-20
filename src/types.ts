@@ -61,6 +61,7 @@ export interface ChatCompletionChunk {
     delta: {
       role?: string;
       content?: string;
+      reasoning_content?: string | null;
     };
     finish_reason: 'stop' | 'length' | null;
   }>;

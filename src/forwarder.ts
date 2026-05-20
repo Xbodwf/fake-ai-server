@@ -455,7 +455,8 @@ export async function forwardEmbeddingsRequest(
 export async function forwardStreamRequest(
   model: Model,
   body: ChatCompletionRequest,
-  res: Response
+  res: Response,
+  onStreamData?: (info: { content: string; reasoningContent?: string | null }) => void
 ): Promise<void> {
   if (!isModelForwardingConfigured(model)) {
     throw new Error('Model not configured for forwarding');
@@ -549,21 +550,50 @@ export async function forwardStreamRequest(
     }
   });
 
-  // 处理流数据，统一 id 格式
+  // 处理流数据，统一 id 格式，并提取 reasoning_content
   let firstChunk = true;
+  let buffer = '';
   response.data.on('data', (chunk: Buffer) => {
     if (clientClosed) return;
     
     let chunkStr = chunk.toString();
     
     // 替换流中的 id 为统一格式
-    // 匹配 "id":"xxx" 或 "id": "xxx" 格式
     chunkStr = chunkStr.replace(
       /"id"\s*:\s*"[^"]*"/g,
       `"id":"${requestId}"`
     );
     
     res.write(chunkStr);
+    
+    // 回调通知：解析结构化数据
+    if (onStreamData) {
+      buffer += chunkStr;
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            const choice = parsed.choices?.[0];
+            if (choice) {
+              const content = choice.delta?.content || '';
+              const reasoningContent = choice.delta?.reasoning_content;
+              if (content || reasoningContent) {
+                onStreamData({
+                  content,
+                  reasoningContent: reasoningContent || null,
+                });
+              }
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    }
   });
 
   response.data.on('end', () => {
@@ -729,7 +759,8 @@ function convertOpenAIToAnthropic(
 async function forwardAnthropicStream(
   model: Model,
   body: ChatCompletionRequest,
-  res: Response
+  res: Response,
+  onStreamData?: (info: { content: string; reasoningContent?: string | null }) => void
 ): Promise<void> {
   // 生成统一的请求 ID
   const requestId = generateRequestId();
@@ -783,6 +814,10 @@ async function forwardAnthropicStream(
       }
     });
 
+    // 跟踪 thinking 状态
+    let thinkingContent = '';
+    let inThinkingBlock = false;
+
     // 处理 Anthropic SSE 流，转换为 OpenAI 格式
     response.data.on('data', (chunk: Buffer) => {
       if (clientClosed) return;
@@ -793,10 +828,53 @@ async function forwardAnthropicStream(
           try {
             const data = JSON.parse(line.slice(6));
 
-            // 处理 Anthropic 的 content_block_delta 事件
+            // 处理 content_block_start（可能包含 thinking 块）
+            if (data.type === 'content_block_start') {
+              if (data.content_block?.type === 'thinking') {
+                inThinkingBlock = true;
+                thinkingContent = data.content_block.thinking || '';
+                // 发出 reasoning_content 块
+                const openaiChunk = {
+                  id: requestId,
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: body.model,
+                  choices: [{
+                    index: 0,
+                    delta: { content: '', reasoning_content: thinkingContent },
+                    finish_reason: null,
+                  }],
+                };
+                res.write(`data: ${JSON.stringify(openaiChunk)}\n\n`);
+                onStreamData?.({ content: '', reasoningContent: thinkingContent });
+                return;
+              }
+              if (data.content_block?.type === 'redacted_thinking') {
+                inThinkingBlock = true;
+                thinkingContent = data.content_block.data || '';
+                const openaiChunk = {
+                  id: requestId,
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: body.model,
+                  choices: [{
+                    index: 0,
+                    delta: { content: '', reasoning_content: '[Thinking redacted]' },
+                    finish_reason: null,
+                  }],
+                };
+                res.write(`data: ${JSON.stringify(openaiChunk)}\n\n`);
+                onStreamData?.({ content: '', reasoningContent: '[Thinking redacted]' });
+                return;
+              }
+              inThinkingBlock = false;
+            }
+
+            // 处理 content_block_delta
             if (data.type === 'content_block_delta') {
               const delta = data.delta;
               if (delta.type === 'text_delta') {
+                inThinkingBlock = false;
                 const openaiChunk = {
                   id: requestId,
                   object: 'chat.completion.chunk',
@@ -809,11 +887,37 @@ async function forwardAnthropicStream(
                   }],
                 };
                 res.write(`data: ${JSON.stringify(openaiChunk)}\n\n`);
+                onStreamData?.({ content: delta.text || '' });
               }
+              if (delta.type === 'thinking_delta') {
+                thinkingContent += delta.thinking || '';
+                const openaiChunk = {
+                  id: requestId,
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: body.model,
+                  choices: [{
+                    index: 0,
+                    delta: { content: '', reasoning_content: delta.thinking || '' },
+                    finish_reason: null,
+                  }],
+                };
+                res.write(`data: ${JSON.stringify(openaiChunk)}\n\n`);
+                onStreamData?.({ content: '', reasoningContent: delta.thinking || '' });
+              }
+              if (delta.type === 'signature_delta') {
+                // signature 不需要透传到前端
+              }
+            }
+
+            // 处理 content_block_stop
+            if (data.type === 'content_block_stop') {
+              inThinkingBlock = false;
             }
 
             // 处理 message_stop 事件
             if (data.type === 'message_stop') {
+              inThinkingBlock = false;
               const openaiChunk = {
                 id: requestId,
                 object: 'chat.completion.chunk',
