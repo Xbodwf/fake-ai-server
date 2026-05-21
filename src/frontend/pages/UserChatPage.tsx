@@ -349,8 +349,10 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
       if (language && hljs.getLanguage(language)) {
         return hljs.highlight(codeString, { language }).value;
       }
-      const result = hljs.highlightAuto(codeString);
-      return result.value;
+      return codeString
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     } catch {
       return codeString;
     }
@@ -362,6 +364,7 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // 单行代码段 → 内联样式，不染色
   if (isSingleLine) {
     return (
       <Box
@@ -379,8 +382,9 @@ const CodeBlock = memo(function CodeBlock({ className, children }: CodeBlockProp
           whiteSpace: 'normal',
           wordBreak: 'break-word',
         }}
-        dangerouslySetInnerHTML={{ __html: highlighted }}
-      />
+      >
+        {codeString}
+      </Box>
     );
   }
 
@@ -619,43 +623,34 @@ interface ReasoningBlockProps {
 
 const ReasoningBlock = memo(function ReasoningBlock({ content, isStreaming }: ReasoningBlockProps) {
   const { t = (key: string, defaultValue?: string) => defaultValue || key } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(!isStreaming);
   const theme = useTheme();
 
+  useEffect(() => {
+    if (!isStreaming) setExpanded(true);
+  }, [isStreaming]);
+
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 1.5,
-        overflow: 'hidden',
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.06)',
-        border: 1,
-        borderColor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.25)' : 'rgba(59,130,246,0.15)',
-        borderRadius: '12px',
-        transition: 'border-color 0.3s',
-      }}
-    >
+    <Box sx={{ mb: 1.5 }}>
       <Box
         onClick={() => setExpanded(!expanded)}
         sx={{
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 1,
+          gap: 0.5,
           cursor: 'pointer',
           userSelect: 'none',
-          '&:hover': {
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.1)',
-          },
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
+          transition: 'color 0.15s',
         }}
       >
         <Box
           sx={{
-            width: 6,
-            height: 6,
+            width: 4,
+            height: 4,
             borderRadius: '50%',
-            bgcolor: '#3b82f6',
+            bgcolor: isStreaming ? 'primary.main' : 'text.disabled',
             animation: isStreaming ? 'reasoning-pulse 1.2s ease-in-out infinite' : 'none',
             '@keyframes reasoning-pulse': {
               '0%, 100%': { opacity: 0.4, transform: 'scale(1)' },
@@ -663,24 +658,23 @@ const ReasoningBlock = memo(function ReasoningBlock({ content, isStreaming }: Re
             },
           }}
         />
-        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#3b82f6', fontSize: '0.8125rem' }}>
+        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
           {isStreaming ? t('chat.reasoning', '推理中...') : t('chat.reasoned', '已完成推理')}
         </Typography>
-        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </Box>
       <Collapse in={expanded}>
         <Box
           sx={{
-            px: 1.5,
-            pb: 1.5,
-            pt: 0.5,
+            mt: 0.5,
+            pl: 1.5,
+            ml: 1,
+            borderLeft: 2,
+            borderColor: 'divider',
             fontSize: '0.8125rem',
             color: 'text.secondary',
-            lineHeight: 1.6,
+            lineHeight: 1.7,
             whiteSpace: 'pre-wrap',
-            fontStyle: 'italic',
-            borderTop: 1,
-            borderColor: theme.palette.mode === 'dark' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)',
           }}
         >
           {content}
@@ -692,7 +686,8 @@ const ReasoningBlock = memo(function ReasoningBlock({ content, isStreaming }: Re
                 width: 6,
                 height: 14,
                 ml: 0.5,
-                bgcolor: '#3b82f6',
+                verticalAlign: 'middle',
+                bgcolor: 'text.disabled',
                 animation: 'reasoning-cursor 0.8s step-end infinite',
                 '@keyframes reasoning-cursor': {
                   '0%, 100%': { opacity: 1 },
@@ -703,7 +698,7 @@ const ReasoningBlock = memo(function ReasoningBlock({ content, isStreaming }: Re
           )}
         </Box>
       </Collapse>
-    </Paper>
+    </Box>
   );
 });
 
@@ -716,56 +711,46 @@ interface ThinkingBlockProps {
 const ThinkingBlock = memo(function ThinkingBlock({ content }: ThinkingBlockProps) {
   const { t = (key: string, defaultValue?: string) => defaultValue || key } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const theme = useTheme();
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 1.5,
-        overflow: 'hidden',
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.08)',
-        border: 1,
-        borderColor: theme.palette.mode === 'dark' ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.2)',
-        borderRadius: '12px',
-      }}
-    >
+    <Box sx={{ mb: 1.5 }}>
       <Box
         onClick={() => setExpanded(!expanded)}
         sx={{
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 1,
+          gap: 0.5,
           cursor: 'pointer',
-          '&:hover': {
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.12)',
-          },
+          userSelect: 'none',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
+          transition: 'color 0.15s',
         }}
       >
-        <Brain size={16} style={{ color: '#8b5cf6' }} />
-        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#8b5cf6' }}>
+        <Brain size={12} />
+        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
           {t('chat.thinkingProcess')}
         </Typography>
-        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </Box>
       <Collapse in={expanded}>
         <Box
           sx={{
-            px: 1.5,
-            pb: 1.5,
-            pt: 0.5,
-            fontSize: '0.875rem',
+            mt: 0.5,
+            pl: 1.5,
+            ml: 1,
+            borderLeft: 2,
+            borderColor: 'divider',
+            fontSize: '0.8125rem',
             color: 'text.secondary',
-            lineHeight: 1.6,
+            lineHeight: 1.7,
             whiteSpace: 'pre-wrap',
           }}
         >
           {content}
         </Box>
       </Collapse>
-    </Paper>
+    </Box>
   );
 });
 
@@ -778,49 +763,37 @@ interface ToolCallBlockProps {
 const ToolCallBlock = memo(function ToolCallBlock({ toolCalls }: ToolCallBlockProps) {
   const { t = (key: string, defaultValue?: string) => defaultValue || key } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const theme = useTheme();
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 1.5,
-        overflow: 'hidden',
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)',
-        border: 1,
-        borderColor: theme.palette.mode === 'dark' ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.2)',
-        borderRadius: '12px',
-      }}
-    >
+    <Box sx={{ mb: 1.5 }}>
       <Box
         onClick={() => setExpanded(!expanded)}
         sx={{
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 1,
+          gap: 0.5,
           cursor: 'pointer',
-          '&:hover': {
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.12)',
-          },
+          userSelect: 'none',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
+          transition: 'color 0.15s',
         }}
       >
-        <Wrench size={16} style={{ color: '#22c55e' }} />
-        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: '#22c55e' }}>
+        <Wrench size={12} />
+        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
           {t('chat.toolCallsCalled', { count: toolCalls.length })}
         </Typography>
-        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </Box>
       <Collapse in={expanded}>
-        <Box sx={{ px: 1.5, pb: 1.5 }}>
+        <Box sx={{ mt: 0.5, pl: 1.5, ml: 1, borderLeft: 2, borderColor: 'divider' }}>
           {toolCalls.map((tool, index) => (
             <Box
               key={tool.id || index}
               sx={{
-                mt: index > 0 ? 1 : 0.5,
+                mt: index > 0 ? 1 : 0,
                 p: 1,
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)',
+                bgcolor: 'action.hover',
                 borderRadius: '8px',
               }}
             >
@@ -864,7 +837,7 @@ const ToolCallBlock = memo(function ToolCallBlock({ toolCalls }: ToolCallBlockPr
           ))}
         </Box>
       </Collapse>
-    </Paper>
+    </Box>
   );
 });
 
@@ -1022,6 +995,7 @@ const MessageBubble = memo(function MessageBubble({
           justifyContent: 'flex-end',
           mb: 2,
           px: 2,
+          animation: 'msg-slide-up 0.3s ease-out',
         }}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
@@ -1114,6 +1088,8 @@ const MessageBubble = memo(function MessageBubble({
         gap: 1.5,
         mb: 2,
         px: 2,
+        animation: 'msg-slide-up 0.3s ease-out',
+        animationFillMode: 'both',
       }}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -1181,19 +1157,29 @@ const MessageBubble = memo(function MessageBubble({
                 <Box
                   component="span"
                   sx={{
-                    display: 'inline-block',
-                    width: 6,
-                    height: 14,
-                    ml: 0.5,
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
-                    animation: 'stream-cursor 0.8s step-end infinite',
+                    display: 'inline-flex',
                     verticalAlign: 'middle',
-                    '@keyframes stream-cursor': {
-                      '0%, 100%': { opacity: 1 },
-                      '50%': { opacity: 0 },
+                    gap: 0.25,
+                    ml: 0.5,
+                    '& span': {
+                      width: 4,
+                      height: 4,
+                      borderRadius: '50%',
+                      bgcolor: 'text.disabled',
+                      animation: 'stream-dots 1.4s infinite',
+                    },
+                    '& span:nth-of-type(2)': { animationDelay: '0.2s' },
+                    '& span:nth-of-type(3)': { animationDelay: '0.4s' },
+                    '@keyframes stream-dots': {
+                      '0%, 80%, 100%': { opacity: 0.2, transform: 'translateY(0)' },
+                      '40%': { opacity: 1, transform: 'translateY(-2px)' },
                     },
                   }}
-                />
+                >
+                  <span />
+                  <span />
+                  <span />
+                </Box>
               )}
             </Box>
           ) : (isLoading || message._isStreaming) && isLastMessage ? (
@@ -1641,10 +1627,11 @@ export function UserChatPage() {
       return;
     }
 
+    const fileArray = Array.from(selected);
     const nextFiles: UploadedFile[] = [];
 
-    for (let i = 0; i < selected.length; i++) {
-      const file = selected[i];
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
 
       if (!isSupportedFileType(file)) continue;
 
@@ -1673,7 +1660,7 @@ export function UserChatPage() {
 
     // 异步处理文件加载
     for (const uploaded of nextFiles) {
-      const file = Array.from(selected).find(f => f.name === uploaded.name && f.size === uploaded.size);
+      const file = fileArray.find(f => f.name === uploaded.name && f.size === uploaded.size);
       if (!file) continue;
 
       const isImage = isImageFile(file);
@@ -2293,7 +2280,7 @@ export function UserChatPage() {
               selected={currentSessionId === session.id}
               onClick={() => {
                 setCurrentSessionId(session.id);
-                navigate(`/chat/${session.id}`, { replace: true }); // 更新URL
+                navigate(`/chat/session/${session.id}`, { replace: true });
                 setMobileDrawerOpen(false);
               }}
               sx={{
@@ -2330,9 +2317,45 @@ export function UserChatPage() {
     <>
       <GlobalStyles
         styles={{
-          // highlight.js: enable correct theme based on MUI mode
-          // github.css (light) is imported first, github-dark.css second.
-          // In light mode, override dark theme classes with light colors.
+          '@keyframes msg-slide-up': {
+            from: { opacity: 0, transform: 'translateY(12px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+          },
+          '@keyframes shimmer': {
+            '0%': { backgroundPosition: '-200% 0' },
+            '100%': { backgroundPosition: '200% 0' },
+          },
+          '@keyframes float': {
+            '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+            '50%': { transform: 'translateY(-16px) rotate(3deg)' },
+          },
+          '@keyframes float-delayed': {
+            '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+            '50%': { transform: 'translateY(-20px) rotate(-4deg)' },
+          },
+          '@keyframes glow-pulse': {
+            '0%, 100%': { opacity: 0.4 },
+            '50%': { opacity: 0.8 },
+          },
+          // Custom scrollbar for message container
+          '#messages-container::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '#messages-container::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '#messages-container::-webkit-scrollbar-thumb': {
+            background: theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,0.12)'
+              : 'rgba(0,0,0,0.12)',
+            borderRadius: '3px',
+          },
+          '#messages-container::-webkit-scrollbar-thumb:hover': {
+            background: theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,0.2)'
+              : 'rgba(0,0,0,0.2)',
+          },
+          // highlight.js theme switching
           ...(theme.palette.mode === 'light' ? {
             '.hljs': { color: '#24292e', background: 'transparent' },
             '.hljs-comment,.hljs-quote': { color: '#6a737d' },
@@ -2349,8 +2372,6 @@ export function UserChatPage() {
             '.hljs-deletion': { background: '#ffeef0' },
             '.hljs-addition': { background: '#f0fff4' },
           } : {
-            // Dark mode: github-dark-dimmed is already loaded as the last import,
-            // but ensure transparent background so the Paper's bgcolor shows through
             '.hljs': { background: 'transparent' },
           }),
         }}
@@ -2358,18 +2379,28 @@ export function UserChatPage() {
       <Box
         sx={{
           position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex',
-        overflow: 'hidden',
-        background: theme.palette.mode === 'dark' 
-          ? 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.9) 100%)'
-          : 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.05) 0%, rgba(0,0,0,0.05) 50%, rgba(255,255,255,0.8) 100%)',
-        backdropFilter: 'blur(2px)',
-        zIndex: 1,
-      }}
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          overflow: 'hidden',
+          background: theme.palette.mode === 'dark'
+            ? 'radial-gradient(ellipse 80% 60% at 15% 40%, rgba(59,130,246,0.12) 0%, rgba(30,64,175,0.06) 40%, rgba(0,0,0,0.95) 100%)'
+            : 'radial-gradient(ellipse 80% 60% at 15% 40%, rgba(59,130,246,0.06) 0%, rgba(30,64,175,0.03) 40%, rgba(248,250,252,1) 100%)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 1,
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            opacity: theme.palette.mode === 'dark' ? 0.03 : 0.015,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '128px 128px',
+            pointerEvents: 'none',
+          },
+        }}
     >
       {/* 聊天区域 - 悬浮卡片 */}
       <Box
@@ -2782,6 +2813,22 @@ export function UserChatPage() {
                 </Tooltip>
 
                 <Box sx={{ flex: 1 }} />
+
+                {/* 快捷键提示 */}
+                {!loading && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.disabled',
+                      fontSize: '0.65rem',
+                      mr: 1,
+                      display: { xs: 'none', sm: 'block' },
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('chat.sendHint', '发送')}
+                  </Typography>
+                )}
 
                 {/* 选项按钮 */}
                 <Tooltip title={t('chat.moreOptions', '更多选项')}>

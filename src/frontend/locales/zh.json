@@ -181,6 +181,7 @@
     "totalTokens": "总计",
     "timestamp": "时间戳",
     "cancelled": "用户取消了响应",
+    "sendHint": "发送",
     "reasoning": "推理中...",
     "reasoned": "已完成推理",
     "contextWarning": "上下文使用 {{pct}}%",
